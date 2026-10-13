@@ -1,11 +1,11 @@
-# Day 1 (part 2) – 2026-10-13: Phase 1, static addressing with netplan
+# Day 1 (part 2) – 2026-10-13: Phase 1, static addressing, routing and NAT
 
 | | |
 |---|---|
 | **Project** | Acme Analytics – hardened, observable and recoverable Linux platform |
-| **Phase** | 1 – Network foundation, Step 1.1: static addressing |
+| **Phase** | 1 – Network foundation, Steps 1.1–1.3: static addressing, IP forwarding, NAT |
 | **Hosts worked on** | gw01, app01, stor01 |
-| **Status** | Step 1.1 complete on all three hosts ✅ |
+| **Status** | Steps 1.1–1.3 complete ✅ · internal servers reach the internet only through gw01 |
 | **Author** | Muhammad Bilal Javed |
 
 ## 1. Objective
@@ -92,6 +92,37 @@ sudo reboot           # prove the configuration survives a restart
 
 `netplan try` was used instead of `netplan apply` because it rolls back automatically if the change breaks connectivity – the safe habit for remote servers.
 
+### 3.6 Turn gw01 into a router (IP forwarding)
+
+```bash
+echo "net.ipv4.ip_forward=1" | sudo tee /etc/sysctl.d/99-forward.conf
+sudo sysctl --system
+sysctl net.ipv4.ip_forward
+```
+
+The file in `/etc/sysctl.d/` makes the setting permanent; `sysctl --system` loads it immediately without a reboot.
+
+### 3.7 NAT and forwarding rules on gw01
+
+```bash
+# Outbound: lab subnet -> internet, source rewritten to gw01's external address
+sudo iptables -t nat -A POSTROUTING -o ens33 -s 192.168.60.0/24 -j MASQUERADE
+# Allow lab -> internet, and only replies back in
+sudo iptables -A FORWARD -i ens34 -o ens33 -j ACCEPT
+sudo iptables -A FORWARD -i ens33 -o ens34 -m state --state ESTABLISHED,RELATED -j ACCEPT
+# Persist across reboots
+sudo apt install -y iptables-persistent
+sudo netfilter-persistent save
+```
+
+| Rule | Purpose |
+|---|---|
+| `MASQUERADE` on ens33 | Private 192.168.60.x addresses are not routable on the internet; gw01 rewrites them to its own external address and maps replies back |
+| `FORWARD ens34 → ens33 ACCEPT` | Lab servers may start connections to the outside |
+| `FORWARD ens33 → ens34 ESTABLISHED,RELATED` | Only replies to those connections may come back in; the outside cannot open new connections to the lab |
+
+MASQUERADE was chosen over SNAT because gw01's external address comes from DHCP and can change.
+
 ## 4. Results
 
 ### gw01
@@ -116,7 +147,7 @@ default via 192.168.60.1 dev ens34 proto static
 | app01 → gw01 (`ping 192.168.60.1`) | ✅ replies |
 | app01 static IP survives reboot | ✅ |
 | app01 has no direct internet adapter | ✅ ens33 DOWN, no 192.168.229.x address |
-| app01 → internet | ⏳ expected to fail until IP forwarding and NAT are enabled on gw01 (Steps 1.2–1.3) |
+| app01 → internet | ✅ after Steps 1.2–1.3 (see below) |
 
 ### stor01 (after reboot)
 
@@ -135,6 +166,30 @@ default via 192.168.60.1 dev ens34 proto static
 | stor01 has no direct internet adapter | ✅ ens33 DOWN |
 | Data disks for LVM (`lsblk`) | ✅ `sdb` and `sdc`, 5 GB each, unpartitioned (added after issue 7) |
 
+### gw01 routing and NAT
+
+```text
+$ sysctl net.ipv4.ip_forward
+net.ipv4.ip_forward = 1            # was 0 in the Phase 0 baseline
+```
+
+Test from app01 (no internet adapter of its own):
+
+```text
+$ ping -c 3 8.8.8.8
+3 packets transmitted, 3 received, 0% packet loss
+rtt min/avg/max/mdev = 33.878/35.508/37.120/1.323 ms
+
+$ curl -s ifconfig.me
+<public address of the site's internet connection – not 192.168.60.10>
+```
+
+| Test | Result | Proof of |
+|---|---|---|
+| app01 → 8.8.8.8 | ✅ 3/3, 0 % loss, avg 35.5 ms | Routing via gw01 works |
+| Address seen by the internet | ✅ public address, not 192.168.60.10 | MASQUERADE rewrites the source address |
+| TTL of replies | 127 instead of 128 | Packets pass through one extra router hop (gw01) |
+
 ## 5. Issues encountered
 
 | # | Symptom | Cause | Resolution |
@@ -146,6 +201,7 @@ default via 192.168.60.1 dev ens34 proto static
 | 5 | app01 still had a 192.168.229.x address on ens33 | NAT adapter was still connected in VM settings | Unticked *Connected* and *Connect at power on* for the NAT adapter, rebooted; ens33 now DOWN |
 | 6 | VMnet2 not visible in the Virtual Network Editor | It is an isolated custom switch, not a host-only network | Confirmed as correct for the design (see section 2) |
 | 7 | `lsblk` on stor01 shows only `sda`; the two 5 GB data disks planned for LVM are missing | Disks were planned but never added to the VM | Powered off, added 2 × 5 GB SCSI disks in VM settings; `lsblk` now shows `sdb` and `sdc` |
+| 8 | `curl -s if config` and `curl -s ifconfig` returned nothing | Typo / incomplete hostname; `-s` (silent) hides the error message | Used the full name `ifconfig.me`; for troubleshooting, drop `-s` so curl shows the error |
 
 ## 6. Lessons learned
 
@@ -154,9 +210,11 @@ default via 192.168.60.1 dev ens34 proto static
 - `netplan try` + a reboot test is the safe way to change networking: rollback if wrong, proof of persistence if right.
 - Network isolation is enforced at the **hypervisor** level (disconnected adapter), not just in the OS – an internal server should not have an internet adapter at all.
 - Verify hardware against the plan (`lsblk`) early – a missing disk found now costs one minute, found in Phase 2 it blocks the whole storage phase.
+- `ip_forward` + MASQUERADE + a stateful FORWARD rule is the minimal recipe for a Linux NAT gateway; the replies-only rule keeps the lab closed to inbound connections.
 - Pasting through a VM console is unreliable across keyboard layouts; typing short config files by hand is faster than debugging garbled input.
 
 ## 7. Next steps
 
-1. **Step 1.2:** enable IP forwarding on gw01 permanently.
-2. **Step 1.3:** NAT (MASQUERADE) and FORWARD rules on gw01, saved with iptables-persistent, so app01 and stor01 reach the internet only through gw01.
+1. **Step 1.4:** name resolution – `/etc/hosts` vs DNS, lookup order in `nsswitch.conf`.
+2. **Step 1.5:** ports and sockets (`ss`, `lsof`, `nc`).
+3. **Step 1.6:** SSH key access from gw01 to app01 and stor01.
