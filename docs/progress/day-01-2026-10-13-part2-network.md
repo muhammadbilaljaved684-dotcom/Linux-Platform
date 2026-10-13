@@ -133,7 +133,7 @@ default via 192.168.60.1 dev ens34 proto static
 | stor01 → gw01 (`ping -c 3 192.168.60.1`) | ✅ 3/3 received, 0 % loss, avg RTT 4.05 ms |
 | stor01 static IP survives reboot | ✅ |
 | stor01 has no direct internet adapter | ✅ ens33 DOWN |
-| Data disks for LVM (`lsblk`) | ❌ only `sda` (10 GB OS disk) present – see issue 7 |
+| Data disks for LVM (`lsblk`) | ✅ `sdb` and `sdc`, 5 GB each, unpartitioned (added after issue 7) |
 
 ## 5. Issues encountered
 
@@ -145,7 +145,7 @@ default via 192.168.60.1 dev ens34 proto static
 | 4 | `netplan try` printed an Open vSwitch warning | netplan checks for Open vSwitch, which is not installed | Harmless, ignored – no OVS interfaces are used |
 | 5 | app01 still had a 192.168.229.x address on ens33 | NAT adapter was still connected in VM settings | Unticked *Connected* and *Connect at power on* for the NAT adapter, rebooted; ens33 now DOWN |
 | 6 | VMnet2 not visible in the Virtual Network Editor | It is an isolated custom switch, not a host-only network | Confirmed as correct for the design (see section 2) |
-| 7 | `lsblk` on stor01 shows only `sda`; the two 5 GB data disks planned for LVM are missing | Disks were planned but never added to the VM | Add 2 × 5 GB virtual disks in VM settings (power off first) before Phase 2 |
+| 7 | `lsblk` on stor01 shows only `sda`; the two 5 GB data disks planned for LVM are missing | Disks were planned but never added to the VM | Powered off, added 2 × 5 GB SCSI disks in VM settings; `lsblk` now shows `sdb` and `sdc` |
 
 ## 6. Lessons learned
 
@@ -158,6 +158,5 @@ default via 192.168.60.1 dev ens34 proto static
 
 ## 7. Next steps
 
-1. Add the two 5 GB data disks to stor01 and confirm `sdb` and `sdc` appear in `lsblk`.
-2. **Step 1.2:** enable IP forwarding on gw01 permanently.
-3. **Step 1.3:** NAT (MASQUERADE) and FORWARD rules on gw01, saved with iptables-persistent, so app01 and stor01 reach the internet only through gw01.
+1. **Step 1.2:** enable IP forwarding on gw01 permanently.
+2. **Step 1.3:** NAT (MASQUERADE) and FORWARD rules on gw01, saved with iptables-persistent, so app01 and stor01 reach the internet only through gw01.
