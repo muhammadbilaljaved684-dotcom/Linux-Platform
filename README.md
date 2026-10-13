@@ -19,6 +19,10 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 | stor01 | The archive room – files, backups, logs | Storage: LVM, NFS, backups, central log server | 192.168.60.20 |
 | svc01 | The help desk – tickets and inventory | Service desk: GLPI tickets, knowledge base, asset inventory | 192.168.60.40 |
 
+## Start here
+
+📖 **[The Day 1 story](docs/progress/day-01-story.md)** – the whole day told step by step: what I did, why, the real screenshot, and why it leads to the next step. Written so that non-specialists can follow it. Also as a document: [Project-2-Day-1-story.odt](docs/progress/Project-2-Day-1-story.odt).
+
 ## Where I am now
 
 **Phase 1, Step 1.4** – the servers have fixed addresses, the lab reaches the internet only through gw01, and servers can find each other by name.
