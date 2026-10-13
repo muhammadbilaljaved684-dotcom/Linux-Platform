@@ -4,8 +4,8 @@
 |---|---|
 | **Project** | Acme Analytics – hardened, observable and recoverable Linux platform |
 | **Phase** | 1 – Network foundation, Step 1.1: static addressing |
-| **Hosts worked on** | gw01, app01 (stor01 in progress) |
-| **Status** | gw01 ✅ · app01 ✅ · stor01 🟡 |
+| **Hosts worked on** | gw01, app01, stor01 |
+| **Status** | Step 1.1 complete on all three hosts ✅ |
 | **Author** | Muhammad Bilal Javed |
 
 ## 1. Objective
@@ -118,6 +118,23 @@ default via 192.168.60.1 dev ens34 proto static
 | app01 has no direct internet adapter | ✅ ens33 DOWN, no 192.168.229.x address |
 | app01 → internet | ⏳ expected to fail until IP forwarding and NAT are enabled on gw01 (Steps 1.2–1.3) |
 
+### stor01 (after reboot)
+
+```text
+ens33   DOWN
+ens34   UP   192.168.60.20/24
+
+default via 192.168.60.1 dev ens34 proto static
+192.168.60.0/24 dev ens34 proto kernel scope link src 192.168.60.20
+```
+
+| Test | Result |
+|---|---|
+| stor01 → gw01 (`ping -c 3 192.168.60.1`) | ✅ 3/3 received, 0 % loss, avg RTT 4.05 ms |
+| stor01 static IP survives reboot | ✅ |
+| stor01 has no direct internet adapter | ✅ ens33 DOWN |
+| Data disks for LVM (`lsblk`) | ❌ only `sda` (10 GB OS disk) present – see issue 7 |
+
 ## 5. Issues encountered
 
 | # | Symptom | Cause | Resolution |
@@ -128,6 +145,7 @@ default via 192.168.60.1 dev ens34 proto static
 | 4 | `netplan try` printed an Open vSwitch warning | netplan checks for Open vSwitch, which is not installed | Harmless, ignored – no OVS interfaces are used |
 | 5 | app01 still had a 192.168.229.x address on ens33 | NAT adapter was still connected in VM settings | Unticked *Connected* and *Connect at power on* for the NAT adapter, rebooted; ens33 now DOWN |
 | 6 | VMnet2 not visible in the Virtual Network Editor | It is an isolated custom switch, not a host-only network | Confirmed as correct for the design (see section 2) |
+| 7 | `lsblk` on stor01 shows only `sda`; the two 5 GB data disks planned for LVM are missing | Disks were planned but never added to the VM | Add 2 × 5 GB virtual disks in VM settings (power off first) before Phase 2 |
 
 ## 6. Lessons learned
 
@@ -135,10 +153,11 @@ default via 192.168.60.1 dev ens34 proto static
 - cloud-init can silently override manual network changes; disabling its network module makes the configuration owned by the admin.
 - `netplan try` + a reboot test is the safe way to change networking: rollback if wrong, proof of persistence if right.
 - Network isolation is enforced at the **hypervisor** level (disconnected adapter), not just in the OS – an internal server should not have an internet adapter at all.
+- Verify hardware against the plan (`lsblk`) early – a missing disk found now costs one minute, found in Phase 2 it blocks the whole storage phase.
 - Pasting through a VM console is unreliable across keyboard layouts; typing short config files by hand is faster than debugging garbled input.
 
 ## 7. Next steps
 
-1. Finish stor01 (192.168.60.20/24), verify with `ip -br a`, `ip route`, `ping 192.168.60.1`, and confirm the two 5 GB data disks with `lsblk`.
+1. Add the two 5 GB data disks to stor01 and confirm `sdb` and `sdc` appear in `lsblk`.
 2. **Step 1.2:** enable IP forwarding on gw01 permanently.
 3. **Step 1.3:** NAT (MASQUERADE) and FORWARD rules on gw01, saved with iptables-persistent, so app01 and stor01 reach the internet only through gw01.
