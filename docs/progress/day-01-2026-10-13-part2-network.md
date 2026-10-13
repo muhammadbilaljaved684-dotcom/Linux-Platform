@@ -202,6 +202,12 @@ ip route           # the routing table: where traffic is sent
 | `default via 192.168.60.1 dev ens34` | "anything not local → send to gw01" ✅ |
 | `192.168.60.0/24 dev ens34 … src 192.168.60.10` | lab neighbours are reached directly on ens34 ✅ |
 
+📸 **Evidence – stor01: same method, file written and permissions set, internet adapter unplugged in VMware:**
+
+![stor01 netplan file](../images/day-01/24-stor01-netplan-file.png)
+
+![stor01 NAT adapter disconnected](../images/day-01/25-stor01-disconnect-nat.png)
+
 📸 **Evidence – stor01 after the same steps:** ens33 DOWN, `192.168.60.20/24`, default via gw01, ping to gw01 3/3 received:
 
 ![stor01 network and disks](../images/day-01/17-stor01-network-lsblk.png)
@@ -294,6 +300,16 @@ curl -s ifconfig.me    # ask a website: "which address do you see me coming from
 | `curl ifconfig.me` | ✅ shows the home network's public address, **not** 192.168.60.10 | NAT replaced app01's private address |
 | TTL 127 (instead of 128) | each router lowers TTL by 1 | the packets passed through one extra router: gw01 |
 
+🔧 **Proof on gw01's side** – the NAT rule's packet counter:
+
+```bash
+sudo iptables -t nat -L -n -v --line-numbers   # list NAT rules with packet/byte counters
+```
+
+📸 **Evidence:** the MASQUERADE rule translated **34 packets (2443 bytes)** from 192.168.60.0/24 out through ens33 ("Sorry, try again" = mistyped sudo password):
+
+![NAT counters on gw01](../images/day-01/26-gw01-nat-counters.png)
+
 > Note: `curl` prints the address without a line break, so the prompt appears glued to it (`…bilal_002@app01`). `curl -s ifconfig.me; echo` adds the line break.
 
 ---
@@ -367,7 +383,11 @@ dig +short google.com              # ask DNS directly for google.com's addresses
 | 7 | `lsblk` on stor01 showed only `sda` | The two planned 5 GB data disks had never been added | Powered off, added 2 × 5 GB SCSI disks; `sdb` and `sdc` now present |
 | 8 | `curl -s if config` / `curl -s ifconfig` printed nothing | Typo / incomplete hostname; `-s` (silent) hides the error | Used the full name `ifconfig.me`; drop `-s` when troubleshooting |
 | 9 | `ssh bilal_001@192.168.229.155` from Windows PowerShell timed out, although `sshd` was running and listening on port 22 – see screenshots below | Not investigated further: direct SSH from the Windows host is not part of the design (admin access comes through the WireGuard VPN in Phase 6A) | Deferred; console access used meanwhile |
-| 10 | On app01 the `tee` output of the cloud-init line appeared as `#network: …` | A `#` makes the line a comment (ignored) – likely a typing slip | Open check: `cat` the file and remove the `#` if present |
+| 10 | On app01 the `tee` output of the cloud-init line appeared as `#network: …` | A `#` makes the line a comment (ignored) – a typing slip | Rewrote the file; `cat` confirms `network: {config: disabled}` (screenshot below) |
+
+📸 **Issue 10 – cloud-init file verified on app01 after the fix:**
+
+![cloud-init file correct on app01](../images/day-01/23-app01-cloudinit-fixed.png)
 
 📸 **Issue 2 – garbled paste:**
 
