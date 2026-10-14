@@ -266,7 +266,7 @@ gw01 now *passes traffic on*, but the internet still cannot answer app01. Addres
 
 ## Chapter 5 – Sharing the internet safely: NAT (Step 1.3)
 
-**What I did and why.** **NAT (Network Address Translation)** works like a company mailroom. When app01 sends a letter out, gw01 crosses out the sender "Room 10" and writes the **company's street address** – its own. When the reply arrives, gw01 remembers who asked and delivers it to app01. The firewall rules decide **who may pass**: the lab may go out, and only **replies** may come back in. Strangers on the internet cannot start a conversation with app01 or stor01.
+**What I did and why.** **NAT (Network Address Translation)** works like a company mailroom. When app01 sends a letter out, gw01 crosses out the sender "Room 10" and writes the **company's street address** – its own. When the reply arrives, gw01 remembers who asked and delivers it to app01. The firewall rules decide **who may pass**: the lab may go out, and replies come back in. (Strictly blocking everything else needs a DROP default policy, which follows in Phase 6; today the lab is protected because its private addresses cannot be reached from the internet.)
 
 ```
 # NAT: lab traffic leaving through ens33 gets gw01's address as sender
@@ -374,7 +374,7 @@ dig +short google.com              # ask DNS directly
 | Fixed addresses on all three servers, surviving reboot | Done |
 | app01 and stor01 without their own internet line | Done |
 | gw01 routes and translates (IP forwarding + NAT) | Done – 34 packets translated |
-| Only replies allowed back into the lab | Done by design |
+| Only replies allowed back into the lab | Rule in place; strict enforcement (DROP policy) in Phase 6 |
 | Servers find each other by name | app01 → stor01 done; break test pending |
 | Data disks ready for storage | Done (sdb, sdc) |
 
@@ -399,6 +399,39 @@ Evening:   one controlled door to the internet - gw01
 *"I built the network foundation of a three-server Linux lab: static addressing with netplan, internal servers with no direct internet access, and a Linux gateway doing NAT with stateful forwarding, so all outbound traffic passes one controlled point. I verified every change after reboot and documented ten issues with their root causes."*
 
 **Next steps:** finish the break test of Step 1.4; then Step 1.5 (ports – which programs listen on which "door") and Step 1.6 (SSH key login from gw01 to the other servers, the basis for automation later).
+
+## Chapter 9 – Key understanding (in my own words)
+
+These are the conclusions I reached by questioning each step until it made sense. They are written so I can explain them in an interview.
+
+### 1. The network file and cloud-init
+
+- `/etc/netplan/50-cloud-init.yaml` is the main network settings file: IP address, gateway and DNS. It was written once by **cloud-init** when Ubuntu was installed. At every boot **netplan reads it** and configures the network cards.
+- cloud-init is the **writer**, netplan is the **reader**. cloud-init could rewrite the file on a later boot and erase my settings.
+- So I created `/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg` with `network: {config: disabled}`. This only stops **cloud-init from managing the network** – the network itself and netplan keep working.
+- Files in a `.d` folder are read in alphabetical order and **the last one wins**, so a `99-` file has the final word. The numbers only matter between files in the **same folder** – 50 (netplan) and 99 (cloud-init) are never compared.
+- In Proxmox or the cloud, cloud-init is used the other way round: the admin enters IP, user and SSH key in the hypervisor, and cloud-init writes them into the server at first boot – ideal for cloned templates. In my VMware lab nothing feeds cloud-init, so I configure netplan by hand and keep cloud-init away from the network.
+
+### 2. What the network file says
+
+- `addresses: [192.168.60.10/24]` – **I am** 192.168.60.10; `/24` means 192.168.60.0–255 are my direct neighbours.
+- `routes: - to: default via: 192.168.60.1` – "default" is not a machine, it means **everything I don't know**; `via` names who to hand it to: gw01.
+- `nameservers: [1.1.1.1, 8.8.8.8]` – the internet's phone books. A name is first looked up in `/etc/hosts` (my own contact list – that is how `stor01` is found), and only then asked from DNS (that is how `google.com` is found).
+- netplan only sets **addresses, gateway and DNS**. Being a router (ip_forward), NAT and firewall (iptables) and VPN (WireGuard) are set elsewhere.
+
+### 3. The path to the internet
+
+> app01 is 192.168.60.10 and has no internet adapter. For anything outside the lab it goes via gw01 (192.168.60.1), its default gateway. gw01 translates app01's private address into its own (NAT) and passes the traffic on through VMware and the home router to the internet. stor01 works the same way with 192.168.60.20.
+
+### 4. NAT, forwarding and conntrack
+
+> NAT recognises lab traffic by its IP range (`-s 192.168.60.0/24`) and changes the sender address as it leaves via `-o ens33`. Forwarding decides who may pass using the cards (`-i ens34 -o ens33`). Replies are let back in only if conntrack – gw01's memory of every conversation – confirms they are ESTABLISHED or RELATED to a conversation the lab started. conntrack also remembers which lab machine asked, so NAT can return each reply to the right one.
+
+- **Two jobs, two tables:** the NAT table *changes the address* (`-j MASQUERADE`); the filter table's FORWARD chain *gives permission* (`-j ACCEPT`). A packet is checked by FORWARD first and rewritten in POSTROUTING just before it leaves – whatever order the commands were typed in.
+- **`-s`/`-d` take IP addresses, `-i`/`-o` take card names.** `-s ens34` is always wrong. In POSTROUTING only the exit card is known, so `-i` is not allowed there – the lab must be identified by its IP range.
+- **States:** NEW = someone starts a conversation; ESTABLISHED = a reply in a conversation the lab started; RELATED = a helper message (e.g. an error) belonging to it. `sudo conntrack -L` on gw01 shows the live list.
+- **Honest limit today:** Ubuntu's default FORWARD policy is still ACCEPT, so the "only replies come back" rule is not yet enforced strictly. Right now the lab is protected because its private addresses sit behind two layers of NAT and cannot be reached from the internet. The strict version comes in Phase 6, when the default policy becomes DROP.
+- `netfilter-persistent save` must run **last** – it saves only the rules that exist at that moment.
 
 ## Glossary
 
