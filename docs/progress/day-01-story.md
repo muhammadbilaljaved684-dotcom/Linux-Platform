@@ -164,13 +164,8 @@ echo "network: {config: disabled}" | sudo tee /etc/cloud/cloud.cfg.d/99-disable-
 
 The new settings for gw01: the internet card keeps getting its address automatically; the lab card gets the fixed address **192.168.60.1**. gw01 needs no gateway on the lab side – it *is* the gateway.
 
-![Figure 10 – gw01's netplan file, typed by hand in the nano editor.](../images/day-01/09-gw01-netplan-nano.png)
-*Figure 10 – gw01's netplan file, typed by hand in the nano editor.*
-
-**Second surprise – why "typed by hand"?** My first attempt was to paste the file into the VMware window. It arrived scrambled: `:` became `Ö`, `[` became `ü`, and every line was indented further than the last. The keyboard layout inside the VM was different from Windows, and the vim editor added its own indentation. I quit without saving (`Esc`, `:q!`) and typed the file in nano.
-
-![Figure 11 – The garbled paste: colons turned into Ö, opening brackets into ü, and a staircase of indentation.](../images/day-01/06-issue-garbled-paste.png)
-*Figure 11 – The garbled paste: colons turned into Ö, opening brackets into ü, and a staircase of indentation.*
+![Figure 10 – gw01's netplan file, typed in the nano editor.](../images/day-01/09-gw01-netplan-nano.png)
+*Figure 10 – gw01's netplan file, typed in the nano editor.*
 
 ```
 sudo chmod 600 /etc/netplan/50-cloud-init.yaml   # only the administrator may read/write it
@@ -178,8 +173,8 @@ sudo netplan try                                 # apply with automatic undo; En
 ip -br a                                         # check
 ```
 
-![Figure 12 – netplan try accepted; ens34 on gw01 now has 192.168.60.1/24. The Open vSwitch warning is harmless (that software is not installed).](../images/day-01/11-gw01-netplan-try.png)
-*Figure 12 – netplan try accepted; ens34 on gw01 now has 192.168.60.1/24. The Open vSwitch warning is harmless (that software is not installed).*
+![Figure 11 – netplan try accepted; ens34 on gw01 now has 192.168.60.1/24. The Open vSwitch warning is harmless (that software is not installed).](../images/day-01/11-gw01-netplan-try.png)
+*Figure 11 – netplan try accepted; ens34 on gw01 now has 192.168.60.1/24. The Open vSwitch warning is harmless (that software is not installed).*
 
 **Result:** gw01 now has two addresses – one facing the internet, one facing the lab.
 
@@ -187,29 +182,29 @@ ip -br a                                         # check
 
 app01 gets the fixed address **192.168.60.10**, and a **default route**: "for any address you don't know, ask gw01 (192.168.60.1)". It also gets DNS servers (1.1.1.1 and 8.8.8.8) – the internet's phone book, which turns names into numbers.
 
-![Figure 13 – app01 also uses 50-cloud-init.yaml.](../images/day-01/30-app01-netplan-ls.png)
-*Figure 13 – app01 also uses 50-cloud-init.yaml.*
+![Figure 12 – app01 also uses 50-cloud-init.yaml.](../images/day-01/30-app01-netplan-ls.png)
+*Figure 12 – app01 also uses 50-cloud-init.yaml.*
 
-![Figure 14 – app01: backup, cloud-init line, the new settings (192.168.60.10, default route via gw01, DNS servers) and netplan try. Note the "#" at the start of the cloud-init line – a typing slip that turns the line into a comment.](../images/day-01/13-app01-netplan-try.png)
-*Figure 14 – app01: backup, cloud-init line, the new settings (192.168.60.10, default route via gw01, DNS servers) and netplan try. Note the "#" at the start of the cloud-init line – a typing slip that turns the line into a comment.*
+![Figure 13 – app01: backup, cloud-init line, the new settings (192.168.60.10, default route via gw01, DNS servers) and netplan try. Note the "#" at the start of the cloud-init line – a typing slip that turns the line into a comment.](../images/day-01/13-app01-netplan-try.png)
+*Figure 13 – app01: backup, cloud-init line, the new settings (192.168.60.10, default route via gw01, DNS servers) and netplan try. Note the "#" at the start of the cloud-init line – a typing slip that turns the line into a comment.*
 
-![Figure 15 – app01 can now reach gw01 (3 of 3 replies) – the lab network works. BUT ens33 still has its own internet address 192.168.229.152.](../images/day-01/12-app01-nat-still-connected.png)
-*Figure 15 – app01 can now reach gw01 (3 of 3 replies) – the lab network works. BUT ens33 still has its own internet address 192.168.229.152.*
+![Figure 14 – app01 can now reach gw01 (3 of 3 replies) – the lab network works. BUT ens33 still has its own internet address 192.168.229.152.](../images/day-01/12-app01-nat-still-connected.png)
+*Figure 14 – app01 can now reach gw01 (3 of 3 replies) – the lab network works. BUT ens33 still has its own internet address 192.168.229.152.*
 
-**Third surprise.** The lab network worked, but app01 still had its own internet line. Configuring Linux alone was not enough: the **virtual cable was still plugged in** in VMware. The real fix is to unplug it in the VM's settings – untick **Connected** and **Connect at power on**.
+**Second surprise.** The lab network worked, but app01 still had its own internet line. Configuring Linux alone was not enough: the **virtual cable was still plugged in** in VMware. The real fix is to unplug it in the VM's settings – untick **Connected** and **Connect at power on**.
 
-![Figure 16 – Unplugging app01's internet adapter in VMware (Connected unticked).](../images/day-01/15-app01-disconnect-nat.png)
-*Figure 16 – Unplugging app01's internet adapter in VMware (Connected unticked).*
+![Figure 15 – Unplugging app01's internet adapter in VMware (Connected unticked).](../images/day-01/15-app01-disconnect-nat.png)
+*Figure 15 – Unplugging app01's internet adapter in VMware (Connected unticked).*
 
-Before rebooting I also checked the cloud-init file, because of the `#` seen in Figure 14. It now reads correctly, without the `#`:
+Before rebooting I also checked the cloud-init file, because of the `#` seen in Figure 13. It now reads correctly, without the `#`:
 
-![Figure 17 – The cloud-init file is correct: "network: {config: disabled}", no "#".](../images/day-01/23-app01-cloudinit-fixed.png)
-*Figure 17 – The cloud-init file is correct: "network: {config: disabled}", no "#".*
+![Figure 16 – The cloud-init file is correct: "network: {config: disabled}", no "#".](../images/day-01/23-app01-cloudinit-fixed.png)
+*Figure 16 – The cloud-init file is correct: "network: {config: disabled}", no "#".*
 
-![Figure 18 – app01 after reboot: ens33 DOWN (unplugged), ens34 = 192.168.60.10, default route via gw01, cloud-init file still correct.](../images/day-01/31-app01-after-reboot-cloudinit.png)
-*Figure 18 – app01 after reboot: ens33 DOWN (unplugged), ens34 = 192.168.60.10, default route via gw01, cloud-init file still correct.*
+![Figure 17 – app01 after reboot: ens33 DOWN (unplugged), ens34 = 192.168.60.10, default route via gw01, cloud-init file still correct.](../images/day-01/31-app01-after-reboot-cloudinit.png)
+*Figure 17 – app01 after reboot: ens33 DOWN (unplugged), ens34 = 192.168.60.10, default route via gw01, cloud-init file still correct.*
 
-**What Figure 18 proves:**
+**What Figure 17 proves:**
 
 | Line | Meaning |
 |---|---|
@@ -219,29 +214,29 @@ Before rebooting I also checked the cloud-init file, because of the `#` seen in 
 
 **A note on VMnet2.** The lab network VMnet2 does not appear in VMware's Virtual Network Editor (only VMnet1 and VMnet8 are listed). That is correct: VMnet2 is used as a **private, isolated switch** – no connection to Windows and no automatic address service. The lab is closed; only gw01 connects it to the outside.
 
-![Figure 19 – VMware's Virtual Network Editor lists only VMnet1 and VMnet8 – VMnet2 is an isolated switch, as intended.](../images/day-01/14-virtual-network-editor.png)
-*Figure 19 – VMware's Virtual Network Editor lists only VMnet1 and VMnet8 – VMnet2 is an isolated switch, as intended.*
+![Figure 18 – VMware's Virtual Network Editor lists only VMnet1 and VMnet8 – VMnet2 is an isolated switch, as intended.](../images/day-01/14-virtual-network-editor.png)
+*Figure 18 – VMware's Virtual Network Editor lists only VMnet1 and VMnet8 – VMnet2 is an isolated switch, as intended.*
 
 ### 3.3 stor01 – the archive room, and the missing disks
 
 stor01 got the same treatment, now done in the right order from the start – lesson learned from app01.
 
-![Figure 20 – stor01: file found, backed up, cloud-init disabled (correctly this time), settings with 192.168.60.20, permissions set.](../images/day-01/24-stor01-netplan-file.png)
-*Figure 20 – stor01: file found, backed up, cloud-init disabled (correctly this time), settings with 192.168.60.20, permissions set.*
+![Figure 19 – stor01: file found, backed up, cloud-init disabled (correctly this time), settings with 192.168.60.20, permissions set.](../images/day-01/24-stor01-netplan-file.png)
+*Figure 19 – stor01: file found, backed up, cloud-init disabled (correctly this time), settings with 192.168.60.20, permissions set.*
 
-![Figure 21 – stor01: netplan try accepted.](../images/day-01/32-stor01-netplan-try.png)
-*Figure 21 – stor01: netplan try accepted.*
+![Figure 20 – stor01: netplan try accepted.](../images/day-01/32-stor01-netplan-try.png)
+*Figure 20 – stor01: netplan try accepted.*
 
-![Figure 22 – stor01's internet adapter unplugged in VMware: both "Connected" and "Connect at power on" unticked.](../images/day-01/25-stor01-disconnect-nat.png)
-*Figure 22 – stor01's internet adapter unplugged in VMware: both "Connected" and "Connect at power on" unticked.*
+![Figure 21 – stor01's internet adapter unplugged in VMware: both "Connected" and "Connect at power on" unticked.](../images/day-01/25-stor01-disconnect-nat.png)
+*Figure 21 – stor01's internet adapter unplugged in VMware: both "Connected" and "Connect at power on" unticked.*
 
-![Figure 23 – stor01 after reboot: ens33 DOWN, 192.168.60.20, default via gw01, 3/3 pings to gw01 – but lsblk still shows only sda.](../images/day-01/17-stor01-network-lsblk.png)
-*Figure 23 – stor01 after reboot: ens33 DOWN, 192.168.60.20, default via gw01, 3/3 pings to gw01 – but lsblk still shows only sda.*
+![Figure 22 – stor01 after reboot: ens33 DOWN, 192.168.60.20, default via gw01, 3/3 pings to gw01 – but lsblk still shows only sda.](../images/day-01/17-stor01-network-lsblk.png)
+*Figure 22 – stor01 after reboot: ens33 DOWN, 192.168.60.20, default via gw01, 3/3 pings to gw01 – but lsblk still shows only sda.*
 
-**Fourth surprise.** The network was perfect, but `lsblk` showed that the two extra data disks planned for the storage phase had never been added. I powered stor01 off, added two 5 GB disks in VMware, and checked again:
+**Third surprise.** The network was perfect, but `lsblk` showed that the two extra data disks planned for the storage phase had never been added. I powered stor01 off, added two 5 GB disks in VMware, and checked again:
 
-![Figure 24 – After adding them: sdb and sdc, 5 GB each, empty and ready for Phase 2 (LVM).](../images/day-01/18-stor01-data-disks.png)
-*Figure 24 – After adding them: sdb and sdc, 5 GB each, empty and ready for Phase 2 (LVM).*
+![Figure 23 – After adding them: sdb and sdc, 5 GB each, empty and ready for Phase 2 (LVM).](../images/day-01/18-stor01-data-disks.png)
+*Figure 23 – After adding them: sdb and sdc, 5 GB each, empty and ready for Phase 2 (LVM).*
 
 ### Why do we go to the next step?
 
@@ -257,8 +252,8 @@ sudo sysctl --system                                                   # load it
 sysctl net.ipv4.ip_forward                                             # check: must be 1
 ```
 
-![Figure 25 – ip_forward = 1. In the Phase 0 baseline (Figure 3) it was 0.](../images/day-01/19-gw01-ip-forward.png)
-*Figure 25 – ip_forward = 1. In the Phase 0 baseline (Figure 3) it was 0.*
+![Figure 24 – ip_forward = 1. In the Phase 0 baseline (Figure 3) it was 0.](../images/day-01/19-gw01-ip-forward.png)
+*Figure 24 – ip_forward = 1. In the Phase 0 baseline (Figure 3) it was 0.*
 
 ### Why do we go to the next step?
 
@@ -293,12 +288,12 @@ ping -c 3 8.8.8.8      # can app01 reach a server on the internet?
 curl -s ifconfig.me    # ask a website: which address do you see me coming from?
 ```
 
-![Figure 26 – app01 reaches the internet (3/3 replies from 8.8.8.8), and the website sees the home public address (hidden here), not 192.168.60.10. The two empty curl lines before were typos.](../images/day-01/20-app01-internet-via-nat.png)
-*Figure 26 – app01 reaches the internet (3/3 replies from 8.8.8.8), and the website sees the home public address (hidden here), not 192.168.60.10. The two empty curl lines before were typos.*
+![Figure 25 – app01 reaches the internet (3/3 replies from 8.8.8.8), and the website sees the home public address (hidden here), not 192.168.60.10. The two empty curl lines before were typos.](../images/day-01/20-app01-internet-via-nat.png)
+*Figure 25 – app01 reaches the internet (3/3 replies from 8.8.8.8), and the website sees the home public address (hidden here), not 192.168.60.10. The two empty curl lines before were typos.*
 
-**What Figure 26 proves.**
+**What Figure 25 proves.**
 
-- app01 has no internet card (Figure 18), yet it reaches 8.8.8.8 – **the only possible path is through gw01**.
+- app01 has no internet card (Figure 17), yet it reaches 8.8.8.8 – **the only possible path is through gw01**.
 - The website sees the public address, **not** 192.168.60.10 – NAT replaced the sender address.
 - The reply TTL is 127 instead of 128. TTL is a counter that drops by one at every router – **the packets passed through one extra router: gw01**.
 
@@ -308,8 +303,8 @@ And from gw01's side – the NAT rule's counter shows the traffic it translated:
 sudo iptables -t nat -L -n -v --line-numbers   # list NAT rules with packet counters
 ```
 
-![Figure 27 – On gw01 the MASQUERADE rule has translated 34 packets (2443 bytes) from 192.168.60.0/24 out through ens33. ("Sorry, try again" = mistyped sudo password.)](../images/day-01/26-gw01-nat-counters.png)
-*Figure 27 – On gw01 the MASQUERADE rule has translated 34 packets (2443 bytes) from 192.168.60.0/24 out through ens33. ("Sorry, try again" = mistyped sudo password.)*
+![Figure 26 – On gw01 the MASQUERADE rule has translated 34 packets (2443 bytes) from 192.168.60.0/24 out through ens33. ("Sorry, try again" = mistyped sudo password.)](../images/day-01/26-gw01-nat-counters.png)
+*Figure 26 – On gw01 the MASQUERADE rule has translated 34 packets (2443 bytes) from 192.168.60.0/24 out through ens33. ("Sorry, try again" = mistyped sudo password.)*
 
 ### Why do we go to the next step?
 
@@ -331,16 +326,16 @@ getent hosts stor01                                   # now: 192.168.60.20
 ping -c 1 stor01                                      # reach the server BY NAME
 ```
 
-![Figure 28 – On app01: the first lookup is empty; after adding the entry the name resolves and "ping stor01" works. ("pinc" was a typo.)](../images/day-01/21-app01-hosts-getent.png)
-*Figure 28 – On app01: the first lookup is empty; after adding the entry the name resolves and "ping stor01" works. ("pinc" was a typo.)*
+![Figure 27 – On app01: the first lookup is empty; after adding the entry the name resolves and "ping stor01" works. ("pinc" was a typo.)](../images/day-01/21-app01-hosts-getent.png)
+*Figure 27 – On app01: the first lookup is empty; after adding the entry the name resolves and "ping stor01" works. ("pinc" was a typo.)*
 
 ```
 grep '^hosts' /etc/nsswitch.conf   # the lookup ORDER
 dig +short google.com              # ask DNS directly
 ```
 
-![Figure 29 – "hosts: files dns" – the contact list is checked before DNS. dig returns Google's addresses, so DNS works through gw01.](../images/day-01/22-app01-nsswitch-dig.png)
-*Figure 29 – "hosts: files dns" – the contact list is checked before DNS. dig returns Google's addresses, so DNS works through gw01.*
+![Figure 28 – "hosts: files dns" – the contact list is checked before DNS. dig returns Google's addresses, so DNS works through gw01.](../images/day-01/22-app01-nsswitch-dig.png)
+*Figure 28 – "hosts: files dns" – the contact list is checked before DNS. dig returns Google's addresses, so DNS works through gw01.*
 
 **Still to do:** the "break it" test – write a wrong address for stor01 in `/etc/hosts`, watch `ping stor01` fail although stor01 is healthy, then fix it. It demonstrates a classic real-world fault: a stale contact-list entry beats the correct phone book.
 
@@ -358,12 +353,6 @@ dig +short google.com              # ask DNS directly
 | 8 | stor01 had no data disks | Never added at VM creation | Added 2 × 5 GB disks |
 | 9 | `curl ifconfig` printed nothing | Incomplete name; `-s` hides errors | Used `ifconfig.me` |
 | 10 | SSH from Windows to gw01 timed out, although SSH was running | Not needed for the design – admin access comes through a VPN later | Deferred; worked in the VMware console |
-
-![Figure 30 – Problem 10: SSH from Windows PowerShell timed out …](../images/day-01/07-issue-ssh-timeout.png)
-*Figure 30 – Problem 10: SSH from Windows PowerShell timed out …*
-
-![Figure 31 – … although gw01's SSH service was running and listening on port 22.](../images/day-01/08-sshd-running.png)
-*Figure 31 – … although gw01's SSH service was running and listening on port 22.*
 
 ## Chapter 8 – Where we stand at the end of Day 1
 

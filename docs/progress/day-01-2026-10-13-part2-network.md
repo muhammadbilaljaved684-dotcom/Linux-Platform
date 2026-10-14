@@ -375,29 +375,19 @@ dig +short google.com              # ask DNS directly for google.com's addresses
 | # | Symptom | Cause | Resolution |
 |---|---|---|---|
 | 1 | Netplan file named in the guide did not exist | Ubuntu 22.04 installer names it `50-cloud-init.yaml` | Checked with `ls /etc/netplan`, edited the real file, disabled cloud-init network management |
-| 2 | YAML pasted into the VMware console arrived garbled (`Ö` instead of `:`, `ü` instead of `[`, staircase indentation) – see screenshot below | VM keyboard layout differs from the host layout; vim auto-indents pasted text | Left vim without saving (`Esc`, `:q!`) and typed the file by hand in nano, using spaces |
+| 2 | YAML pasted into the VMware console arrived garbled (`Ö` instead of `:`, `ü` instead of `[`, staircase indentation) | VM keyboard layout differs from the host layout; vim auto-indents pasted text | Left vim without saving (`Esc`, `:q!`) and typed the file by hand in nano, using spaces |
 | 3 | `netplan` warned that file permissions are too open | File readable by all users | `sudo chmod 600 /etc/netplan/50-cloud-init.yaml` |
 | 4 | `netplan try` printed `Cannot call Open vSwitch` | netplan checks for Open vSwitch, which is not installed | Harmless, ignored – no OVS interfaces are used |
 | 5 | app01 still had a 192.168.229.x address on ens33 | NAT adapter still connected in VMware | Unticked *Connected* and *Connect at power on*, rebooted; ens33 now DOWN |
 | 6 | VMnet2 not visible in the Virtual Network Editor | It is an isolated custom switch, not a host-only network | Confirmed as correct for the design |
 | 7 | `lsblk` on stor01 showed only `sda` | The two planned 5 GB data disks had never been added | Powered off, added 2 × 5 GB SCSI disks; `sdb` and `sdc` now present |
 | 8 | `curl -s if config` / `curl -s ifconfig` printed nothing | Typo / incomplete hostname; `-s` (silent) hides the error | Used the full name `ifconfig.me`; drop `-s` when troubleshooting |
-| 9 | `ssh bilal_001@192.168.229.155` from Windows PowerShell timed out, although `sshd` was running and listening on port 22 – see screenshots below | Not investigated further: direct SSH from the Windows host is not part of the design (admin access comes through the WireGuard VPN in Phase 6A) | Deferred; console access used meanwhile |
+| 9 | `ssh bilal_001@192.168.229.155` from Windows PowerShell timed out, although `sshd` was running and listening on port 22 | Not investigated further: direct SSH from the Windows host is not part of the design (admin access comes through the WireGuard VPN in Phase 6A) | Deferred; console access used meanwhile |
 | 10 | On app01 the `tee` output of the cloud-init line appeared as `#network: …` | A `#` makes the line a comment (ignored) – a typing slip | Rewrote the file; `cat` confirms `network: {config: disabled}` (screenshot below) |
 
 📸 **Issue 10 – cloud-init file verified on app01 after the fix:**
 
 ![cloud-init file correct on app01](../images/day-01/23-app01-cloudinit-fixed.png)
-
-📸 **Issue 2 – garbled paste:**
-
-![Garbled YAML after pasting into the VMware console](../images/day-01/06-issue-garbled-paste.png)
-
-📸 **Issue 9 – SSH timeout from Windows, while sshd is listening on gw01:**
-
-![SSH timeout in PowerShell](../images/day-01/07-issue-ssh-timeout.png)
-
-![sshd running and listening on port 22](../images/day-01/08-sshd-running.png)
 
 ## 9. Key understanding (in my own words)
 
