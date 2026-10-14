@@ -337,7 +337,33 @@ dig +short google.com              # ask DNS directly
 ![Figure 28 – "hosts: files dns" – the contact list is checked before DNS. dig returns Google's addresses, so DNS works through gw01.](../images/day-01/22-app01-nsswitch-dig.png)
 *Figure 28 – "hosts: files dns" – the contact list is checked before DNS. dig returns Google's addresses, so DNS works through gw01.*
 
-**Still to do:** the "break it" test – write a wrong address for stor01 in `/etc/hosts`, watch `ping stor01` fail although stor01 is healthy, then fix it. It demonstrates a classic real-world fault: a stale contact-list entry beats the correct phone book.
+### Every server gets the same contact list
+
+Each machine has its **own** `/etc/hosts`, so app01's entry did not help gw01 or stor01. I gave every server the names of the other two:
+
+| Machine | Added |
+|---|---|
+| gw01 | app01 (.10), stor01 (.20) |
+| app01 | gw01 (.1) – stor01 was already there |
+| stor01 | gw01 (.1), app01 (.10) |
+
+**The accidental "break it" test.** On gw01 I first typed `192.168.60.200 stor01` by mistake, then the correct `.20` line. `/etc/hosts` is read top to bottom and **the first match wins**, so gw01 would have sent everything for stor01 to the non-existent .200 – exactly the classic fault the guide wanted me to provoke on purpose. I removed the wrong line in nano. (A similar slip on stor01 – `192.168.60.20 app01` – was caught and corrected the same way.)
+
+![Figure 29 – The typo on gw01: a wrong 192.168.60.200 line for stor01 before the correct .20 line. The first match would have won.](../images/day-01/36-gw01-hosts-typo.png)
+*Figure 29 – The typo on gw01: a wrong 192.168.60.200 line for stor01 before the correct .20 line. The first match would have won.*
+
+**The proof – every server reaches the other two by name:**
+
+![Figure 30 – gw01: correct contact list; ping app01 and ping stor01 by name, 1/1 received each.](../images/day-01/33-gw01-hosts-ping.png)
+*Figure 30 – gw01: correct contact list; ping app01 and ping stor01 by name, 1/1 received each.*
+
+![Figure 31 – app01: gw01 and stor01 by name, both reply.](../images/day-01/34-app01-hosts-ping.png)
+*Figure 31 – app01: gw01 and stor01 by name, both reply.*
+
+![Figure 32 – stor01: gw01 and app01 by name, both reply.](../images/day-01/35-stor01-hosts-ping.png)
+*Figure 32 – stor01: gw01 and app01 by name, both reply.*
+
+Step 1.4 is complete. It also showed the weakness of `/etc/hosts`: the same list had to be typed by hand on three machines, with two typos along the way. That is exactly why companies use a central DNS server – or automation such as Ansible (Phase 7A).
 
 ## Chapter 7 – Problems I met and how I solved them
 
@@ -352,7 +378,12 @@ dig +short google.com              # ask DNS directly
 | 7 | cloud-init line started with `#` on app01 | Typing slip – `#` makes it a comment | Rewrote the file, verified with `cat` |
 | 8 | stor01 had no data disks | Never added at VM creation | Added 2 × 5 GB disks |
 | 9 | `curl ifconfig` printed nothing | Incomplete name; `-s` hides errors | Used `ifconfig.me` |
+| 11 | Typos in `/etc/hosts`: `.200` for stor01 on gw01, `.20` for app01 on stor01 | Typing slips; the first matching line wins | Checked with `cat` and `getent`, corrected in nano |
+| 12 | stor01 flooded the console with `EXT4-fs error … Detected aborted journal` and `Remounting filesystem read-only` | The virtual disk was interrupted on the Windows side (host disk space, sleep or a forced stop); Linux switched the filesystem to read-only to protect the data | Restarted the VM from VMware; the filesystem recovered and became writable again (verified by editing `/etc/hosts`) |
 | 10 | SSH from Windows to gw01 timed out, although SSH was running | Not needed for the design – admin access comes through a VPN later | Deferred; worked in the VMware console |
+
+![Figure 33 – Problem 12: stor01's system disk hit errors and Linux switched it to read-only to protect the data.](../images/day-01/37-stor01-readonly-incident.png)
+*Figure 33 – Problem 12: stor01's system disk hit errors and Linux switched it to read-only to protect the data.*
 
 ## Chapter 8 – Where we stand at the end of Day 1
 
@@ -364,7 +395,7 @@ dig +short google.com              # ask DNS directly
 | app01 and stor01 without their own internet line | Done |
 | gw01 routes and translates (IP forwarding + NAT) | Done – 34 packets translated |
 | Only replies allowed back into the lab | Rule in place; strict enforcement (DROP policy) in Phase 6 |
-| Servers find each other by name | app01 → stor01 done; break test pending |
+| Servers find each other by name | Done – all three, by name |
 | Data disks ready for storage | Done (sdb, sdc) |
 
 **The journey in one picture:**
@@ -387,7 +418,7 @@ Evening:   one controlled door to the internet - gw01
 **How I would explain it in an interview:**
 *"I built the network foundation of a three-server Linux lab: static addressing with netplan, internal servers with no direct internet access, and a Linux gateway doing NAT with stateful forwarding, so all outbound traffic passes one controlled point. I verified every change after reboot and documented ten issues with their root causes."*
 
-**Next steps:** finish the break test of Step 1.4; then Step 1.5 (ports – which programs listen on which "door") and Step 1.6 (SSH key login from gw01 to the other servers, the basis for automation later).
+**Next steps:** Step 1.5 (ports – which programs listen on which "door") and Step 1.6 (SSH key login from gw01 to the other servers, the basis for automation later).
 
 ## Chapter 9 – Key understanding (in my own words)
 
