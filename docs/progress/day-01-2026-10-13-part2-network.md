@@ -5,7 +5,7 @@
 | **Project** | Acme Analytics – hardened, observable and recoverable Linux platform |
 | **Phase** | 1 – Network foundation: Steps 1.1–1.4 |
 | **Hosts worked on** | gw01, app01, stor01 |
-| **Status** | 1.1 static IPs ✅ · 1.2 routing ✅ · 1.3 NAT ✅ · 1.4 name resolution 🟡 (break test pending) |
+| **Status** | 1.1 static IPs ✅ · 1.2 routing ✅ · 1.3 NAT ✅ · 1.4 name resolution ✅ |
 | **Author** | Muhammad Bilal Javed |
 
 > **How to read this report.** Every step has three layers:
@@ -354,7 +354,21 @@ dig +short google.com              # ask DNS directly for google.com's addresses
 | `hosts: files dns` | `/etc/hosts` ("files") is checked first, then DNS |
 | `dig` → six `142.251.110.x` addresses | DNS works from app01 **through gw01's NAT** |
 
-**Still to do:** the "break it" test – put a wrong IP for stor01 in `/etc/hosts`, show that `ping stor01` then fails although stor01 is healthy, and restore the entry. This demonstrates a classic real-world fault: a stale `/etc/hosts` entry overrides correct DNS.
+### All three servers get the contact list
+
+Each machine has its own `/etc/hosts`, so every server received the names of the other two (gw01: app01, stor01 · app01: gw01 · stor01: gw01, app01).
+
+**Accidental break test:** on gw01 I first typed `192.168.60.200 stor01`, then the correct `.20` line. `/etc/hosts` is read top to bottom and the **first match wins**, so stor01 would have resolved to the wrong address – the exact fault the guide asks you to provoke. The wrong line was removed in nano; a similar slip on stor01 (`192.168.60.20 app01`) was corrected the same way.
+
+![Typo on gw01](../images/day-01/36-gw01-hosts-typo.png)
+
+📸 **Evidence – every server reaches the other two by name:**
+
+![gw01 pings by name](../images/day-01/33-gw01-hosts-ping.png)
+
+![app01 pings by name](../images/day-01/34-app01-hosts-ping.png)
+
+![stor01 pings by name](../images/day-01/35-stor01-hosts-ping.png)
 
 ---
 
@@ -367,7 +381,7 @@ dig +short google.com              # ask DNS directly for google.com's addresses
 | gw01 routes between networks | ✅ | `ip_forward = 1` |
 | Lab reaches internet only via gw01 (NAT) | ✅ | ping 8.8.8.8 + ifconfig.me from app01 |
 | Inbound connections from the internet blocked | 🟡 | ESTABLISHED,RELATED rule in place; default FORWARD policy still ACCEPT – strict DROP follows in Phase 6. Lab currently unreachable from outside because of double NAT |
-| Servers resolve each other by name | 🟡 | app01 → stor01 done; break test pending |
+| Servers resolve each other by name | ✅ | all three, by name (`/etc/hosts`) |
 | stor01 data disks present for Phase 2 | ✅ | `sdb`, `sdc` 5 GB |
 
 ## 8. Issues encountered
@@ -384,10 +398,16 @@ dig +short google.com              # ask DNS directly for google.com's addresses
 | 8 | `curl -s if config` / `curl -s ifconfig` printed nothing | Typo / incomplete hostname; `-s` (silent) hides the error | Used the full name `ifconfig.me`; drop `-s` when troubleshooting |
 | 9 | `ssh bilal_001@192.168.229.155` from Windows PowerShell timed out, although `sshd` was running and listening on port 22 | Not investigated further: direct SSH from the Windows host is not part of the design (admin access comes through the WireGuard VPN in Phase 6A) | Deferred; console access used meanwhile |
 | 10 | On app01 the `tee` output of the cloud-init line appeared as `#network: …` | A `#` makes the line a comment (ignored) – a typing slip | Rewrote the file; `cat` confirms `network: {config: disabled}` (screenshot below) |
+| 11 | Typos in `/etc/hosts` (`.200` for stor01 on gw01, `.20` for app01 on stor01) | Typing slips; first matching line wins | Verified with `cat`/`getent`, corrected in nano |
+| 12 | stor01: `EXT4-fs error … Detected aborted journal`, `Remounting filesystem read-only` (screenshot below) | Virtual disk interrupted on the Windows side (host disk space, sleep or forced stop); Linux protected the data by going read-only | Restarted the VM from VMware; filesystem writable again |
 
 📸 **Issue 10 – cloud-init file verified on app01 after the fix:**
 
 ![cloud-init file correct on app01](../images/day-01/23-app01-cloudinit-fixed.png)
+
+📸 **Issue 12 – stor01 filesystem switched to read-only:**
+
+![stor01 read-only incident](../images/day-01/37-stor01-readonly-incident.png)
 
 ## 9. Key understanding (in my own words)
 
@@ -451,6 +471,5 @@ These are the conclusions I reached by questioning each step until it made sense
 
 ## 11. Next steps
 
-1. Finish Step 1.4: break test with a wrong `/etc/hosts` entry, then restore.
-2. **Step 1.5:** ports and sockets – who is listening where (`ss`, `lsof`, `nc`).
-3. **Step 1.6:** SSH key login from gw01 to app01 and stor01 (gw01 later becomes the Ansible control node).
+1. **Step 1.5:** ports and sockets – who is listening where (`ss`, `lsof`, `nc`).
+2. **Step 1.6:** SSH key login from gw01 to app01 and stor01 (gw01 later becomes the Ansible control node).
