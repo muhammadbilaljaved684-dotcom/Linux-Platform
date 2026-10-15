@@ -25,12 +25,12 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 
 ## Where I am now
 
-**Phase 1, Step 1.6 (SSH keys)** – Step 1.5 ✅: every server runs SSH on port 22, reachable across the lab. gw01 logs in to app01 and stor01 without a password. Next: scp/sftp, then Steps 1.7–1.9.
+**Phase 1, Step 1.7 next** – Steps 1.5–1.6 ✅: SSH on every server; gw01 logs in, runs commands and copies files to app01 and stor01 with keys, no passwords.
 
 | Phase | Topic | Status | Report |
 |---|---|---|---|
 | 0 | Know the system: kernel, boot, targets | 🟡 gw01 done | [Day 1, part 1](docs/progress/day-01-2026-10-13.md) |
-| 1 | Network foundation: static IPs, routing, NAT, names, ports | 🟡 Steps 1.1–1.5 ✅, 1.6 in progress | [Day 1, part 2](docs/progress/day-01-2026-10-13-part2-network.md) · [Day 2](docs/progress/day-02-2026-10-15.md) |
+| 1 | Network foundation: static IPs, routing, NAT, names, ports | 🟡 Steps 1.1–1.6 ✅, 1.7–1.9 to do | [Day 1, part 2](docs/progress/day-01-2026-10-13-part2-network.md) · [Day 2](docs/progress/day-02-2026-10-15.md) |
 | 1A | Service desk: GLPI tickets and inventory | ⏳ | |
 | 2 | Storage: LVM, NFS, backups, snapshots | ⏳ (data disks ready) | |
 | 3 | Automation: systemd services and timers | ⏳ | |
