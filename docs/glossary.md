@@ -62,7 +62,12 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **`getent`** | "Get entry" – asks the system what a name resolves to, the same way programs do | Uses the nsswitch order |
 | **dig** | A tool to ask DNS directly | Part of `dnsutils` |
 | **SSH** | Secure remote login to a server's terminal over the network | OpenSSH, port 22 |
-| **Port** | A numbered "door" on a machine for a specific service | e.g. 22 = SSH, 80 = web |
+| **Port** | A numbered "door" on a machine for a specific service | e.g. 22 = SSH, 53 = DNS, 80 = web |
+| **Socket** | A program standing at a door: address + port + protocol | e.g. `127.0.0.53:53` (TCP) |
+| **TCP / UDP** | Phone call (confirmed, reliable) / postcard (just sent) | TCP: 3-way handshake SYN, SYN-ACK, ACK |
+| **LISTEN / UNCONN / ESTAB** | Door waiting / UDP door open / conversation running | States shown by `ss` |
+| **ss** | Shows which program waits behind which door | `ss -tulpn` = socket statistics |
+| **File descriptor (fd)** | The number a program uses for something it has open | fd 13, fd 14 in `ss` output |
 | **VMnet2 / VMnet8** | Virtual network switches inside VMware | VMnet8 = NAT to the internet; VMnet2 = isolated lab |
 
 ## Storage (coming in Phase 2)
