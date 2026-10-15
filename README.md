@@ -25,7 +25,7 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 
 ## Where I am now
 
-**Phase 1, Step 1.5 (ports and sockets)** – port inventory of app01 done: only the local DNS helper listens, SSH is not installed yet. Next: install SSH and test a hand-made TCP connection.
+**Phase 1, Step 1.5 (ports and sockets)** – port inventory of app01 done; SSH enabled (port 22 open). Next: SSH on stor01 and a hand-made TCP connection with `nc`.
 
 | Phase | Topic | Status | Report |
 |---|---|---|---|
