@@ -78,6 +78,10 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 
 | Term | Plain words | Technical |
 |---|---|---|
+| **Inode** | A file's ID card: owner, permissions, size, dates, where the data is – but not the name | Number shown by `ls -i`, `stat`; capacity by `df -i` |
+| **Hard link** | A second name for the same file | `ln a b` – same inode, link count +1 |
+| **Soft (symbolic) link** | A signpost to another file's name; breaks if that name is deleted | `ln -s a b` – own inode, stores a path |
+| **Link count** | How many names a file has; data is freed when it reaches 0 | Third column of `ls -l` |
 | **Disk / block device** | A storage drive | `sda` (system), `sdb`, `sdc` (data); listed by `lsblk` |
 | **Partition** | A section of a disk | `sda1`, `sda2`, … |
 | **LVM** | Lets you combine disks into one pool and grow storage later without downtime | Logical Volume Manager: PV → VG → LV |
