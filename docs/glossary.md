@@ -67,6 +67,10 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **TCP / UDP** | Phone call (confirmed, reliable) / postcard (just sent) | TCP: 3-way handshake SYN, SYN-ACK, ACK |
 | **LISTEN / UNCONN / ESTAB** | Door waiting / UDP door open / conversation running | States shown by `ss` |
 | **ss** | Shows which program waits behind which door | `ss -tulpn` = socket statistics |
+| **netcat (nc)** | Knocks on a port to test whether a service answers | `nc -zv app01 22` |
+| **Loopback** | The machine talking to itself – every 127.x.x.x address | 127.0.0.1 localhost, 127.0.1.1 own name, 127.0.0.53 DNS helper |
+| **Binding address** | Which address a service listens on | `0.0.0.0` = all addresses; `127.0.0.53` = one address only |
+| **Refused vs timeout** | "Nobody here" vs no answer at all | Refused = service problem; timeout = network/firewall |
 | **File descriptor (fd)** | The number a program uses for something it has open | fd 13, fd 14 in `ss` output |
 | **VMnet2 / VMnet8** | Virtual network switches inside VMware | VMnet8 = NAT to the internet; VMnet2 = isolated lab |
 
