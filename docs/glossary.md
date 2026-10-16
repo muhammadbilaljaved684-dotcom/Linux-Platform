@@ -72,6 +72,13 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Binding address** | Which address a service listens on | `0.0.0.0` = all addresses; `127.0.0.53` = one address only |
 | **Refused vs timeout** | "Nobody here" vs no answer at all | Refused = service problem; timeout = network/firewall |
 | **File descriptor (fd)** | The number a program uses for something it has open | fd 13, fd 14 in `ss` output |
+| **User / group** | An account for one person / a team of accounts that share rights | `useradd`, `groupadd`, `id`, `getent group` |
+| **Primary / secondary group** | Your own default group / extra teams you belong to | `gid=` / `groups=` in `id` |
+| **Service account** | An account for a program, not a person – low rights, nobody logs in | `useradd -r -s /usr/sbin/nologin`; uid < 1000 |
+| **nologin** | A "shell" that refuses every login | `/usr/sbin/nologin` |
+| **Least privilege** | Give every person and program only the rights it needs | Normal user + `sudo` when needed |
+| **Password aging** | Rules for when a password expires | `chage -l`, `chage -M 90` |
+| **Lock / unlock** | Switch an account off (leaver) and on again | `usermod -L` / `-U`, status with `passwd -S` |
 | **VMnet2 / VMnet8** | Virtual network switches inside VMware | VMnet8 = NAT to the internet; VMnet2 = isolated lab |
 
 ## Storage (coming in Phase 2)
