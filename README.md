@@ -17,7 +17,7 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 | gw01 | The gatekeeper – the only door to the internet | Gateway: NAT, iptables firewall, WireGuard VPN, Ansible control node | 192.168.60.1 |
 | app01 | The shop window – runs the website | App server: nginx in Docker, monitoring stack (Prometheus, Alertmanager, Grafana) | 192.168.60.10 |
 | stor01 | The archive room – files, backups, logs | Storage: LVM, NFS, backups, central log server | 192.168.60.20 |
-| svc01 | The help desk – tickets and inventory | Service desk: GLPI tickets, knowledge base, asset inventory | 192.168.60.40 |
+| svc01 | The help desk – tickets and inventory | Service desk: GLPI tickets, knowledge base, asset inventory (Docker) | 192.168.60.40 |
 
 ## Start here
 
@@ -25,13 +25,13 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 
 ## Where I am now
 
-**Phase 1 complete ✅ (snapshot `20-Network`) – Phase 1A next** – Steps 1.5–1.9: SSH with keys from gw01 to every server; hard links, soft links and inodes proven (groundwork for the Phase 2 backups); named users, a team group and a no-login service account on app01; [Linux NAT vs cloud NAT](docs/nat-comparison.md) diagram.
+**Phase 1A in progress – building svc01, the service desk** ([Day 3](docs/progress/day-03-2026-10-16.md)). Phase 1 complete ✅ (snapshot `20-Network`) – Steps 1.5–1.9: SSH with keys from gw01 to every server; hard links, soft links and inodes proven (groundwork for the Phase 2 backups); named users, a team group and a no-login service account on app01; [Linux NAT vs cloud NAT](docs/nat-comparison.md) diagram.
 
 | Phase | Topic | Status | Report |
 |---|---|---|---|
 | 0 | Know the system: kernel, boot, targets | 🟡 gw01 done | [Day 1, part 1](docs/progress/day-01-2026-10-13.md) |
 | 1 | Network foundation: static IPs, routing, NAT, names, ports | ✅ Steps 1.1–1.9, snapshot taken | [Day 1, part 2](docs/progress/day-01-2026-10-13-part2-network.md) · [Day 2](docs/progress/day-02-2026-10-15.md) |
-| 1A | Service desk: GLPI tickets and inventory | ⏳ | |
+| 1A | Service desk: GLPI tickets and inventory | 🟡 svc01 VM created | [Day 3](docs/progress/day-03-2026-10-16.md) |
 | 2 | Storage: LVM, NFS, backups, snapshots | ⏳ (data disks ready) | |
 | 3 | Automation: systemd services and timers | ⏳ | |
 | 4 | Processes, signals, cgroups | ⏳ | |

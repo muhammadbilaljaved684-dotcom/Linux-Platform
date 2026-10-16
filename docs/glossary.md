@@ -81,6 +81,19 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Lock / unlock** | Switch an account off (leaver) and on again | `usermod -L` / `-U`, status with `passwd -S` |
 | **VMnet2 / VMnet8** | Virtual network switches inside VMware | VMnet8 = NAT to the internet; VMnet2 = isolated lab |
 
+## Phase 1A – the service desk
+
+| Term | Plain words | Technical |
+|---|---|---|
+| **Service desk / ticket system** | The place where every problem and request is recorded and tracked | GLPI (free), like ServiceNow or Freshservice |
+| **Incident** | Something broke and must be fixed | Ticket type in ITIL |
+| **Change** | A planned change, with a plan and a way back | Change ticket with rollback |
+| **Request** | Someone asks for something (access, software) | Service request |
+| **Knowledge base (KB)** | Written fixes so the next person solves it faster | KB articles |
+| **Asset inventory / CMDB** | A list of every machine and what is on it | Filled automatically by the GLPI agent |
+| **SLA** | The promised time to answer or fix | Service Level Agreement |
+| **ITIL** | The common rule book for running IT services | IT Infrastructure Library |
+
 ## Storage (coming in Phase 2)
 
 | Term | Plain words | Technical |
