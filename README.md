@@ -25,12 +25,12 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 
 ## Where I am now
 
-**Phase 1 steps done – end-of-phase snapshot next, then Phase 1A** – Steps 1.5–1.9 ✅: SSH with keys from gw01 to every server; hard links, soft links and inodes proven (groundwork for the Phase 2 backups); named users, a team group and a no-login service account on app01; [Linux NAT vs cloud NAT](docs/nat-comparison.md) diagram.
+**Phase 1 complete ✅ (snapshot `20-Network`) – Phase 1A next** – Steps 1.5–1.9: SSH with keys from gw01 to every server; hard links, soft links and inodes proven (groundwork for the Phase 2 backups); named users, a team group and a no-login service account on app01; [Linux NAT vs cloud NAT](docs/nat-comparison.md) diagram.
 
 | Phase | Topic | Status | Report |
 |---|---|---|---|
 | 0 | Know the system: kernel, boot, targets | 🟡 gw01 done | [Day 1, part 1](docs/progress/day-01-2026-10-13.md) |
-| 1 | Network foundation: static IPs, routing, NAT, names, ports | 🟡 Steps 1.1–1.9 ✅, snapshot to do | [Day 1, part 2](docs/progress/day-01-2026-10-13-part2-network.md) · [Day 2](docs/progress/day-02-2026-10-15.md) |
+| 1 | Network foundation: static IPs, routing, NAT, names, ports | ✅ Steps 1.1–1.9, snapshot taken | [Day 1, part 2](docs/progress/day-01-2026-10-13-part2-network.md) · [Day 2](docs/progress/day-02-2026-10-15.md) |
 | 1A | Service desk: GLPI tickets and inventory | ⏳ | |
 | 2 | Storage: LVM, NFS, backups, snapshots | ⏳ (data disks ready) | |
 | 3 | Automation: systemd services and timers | ⏳ | |
