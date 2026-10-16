@@ -31,7 +31,7 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 |---|---|---|---|
 | 0 | Know the system: kernel, boot, targets | 🟡 gw01 done | [Day 1, part 1](docs/progress/day-01-2026-10-13.md) |
 | 1 | Network foundation: static IPs, routing, NAT, names, ports | ✅ Steps 1.1–1.9, snapshot taken | [Day 1, part 2](docs/progress/day-01-2026-10-13-part2-network.md) · [Day 2](docs/progress/day-02-2026-10-15.md) |
-| 1A | Service desk: GLPI tickets and inventory | 🟡 svc01 VM created | [Day 3](docs/progress/day-03-2026-10-16.md) |
+| 1A | Service desk: GLPI tickets and inventory | 🟡 svc01 installed and networked; GLPI next | [Day 3](docs/progress/day-03-2026-10-16.md) |
 | 2 | Storage: LVM, NFS, backups, snapshots | ⏳ (data disks ready) | |
 | 3 | Automation: systemd services and timers | ⏳ | |
 | 4 | Processes, signals, cgroups | ⏳ | |
@@ -50,6 +50,17 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 - app01 and stor01 have **no direct internet connection**; all traffic goes through gw01 (IP forwarding + NAT + stateful firewall rule).
 - Name resolution order (`/etc/hosts` before DNS) demonstrated.
 - 10 issues found and documented with cause and fix (wrong file name, keyboard-layout paste corruption, adapter still connected, missing disks, …).
+
+## Roadmap – what the finished project will show
+
+| Area | Phase | Evidence planned |
+|---|---|---|
+| Service desk (ITIL): incidents, requests, changes, KB, inventory | 1A | Real GLPI tickets for every lab incident |
+| Storage and tested backups | 2 | Restore drill, LVM snapshot rollback |
+| Monitoring and alerting | 5A | Time from failure to alert, measured |
+| Security hardening and VPN | 6, 6A | Firewall rules, SSH hardening, WireGuard access |
+| Automation | 7A | Ansible rebuild of a server, timed; joiner/leaver playbook |
+| Acceptance tests and disaster drill | 8 | Results table with measured numbers |
 
 ## Repository layout
 
