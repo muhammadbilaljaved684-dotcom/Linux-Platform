@@ -79,6 +79,9 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Least privilege** | Give every person and program only the rights it needs | Normal user + `sudo` when needed |
 | **Password aging** | Rules for when a password expires | `chage -l`, `chage -M 90` |
 | **Lock / unlock** | Switch an account off (leaver) and on again | `usermod -L` / `-U`, status with `passwd -S` |
+| **Switch** | An extension board for a network: devices plugged in talk directly | VMnet2, VMnet8 are virtual switches |
+| **Host adapter** | A virtual network card on the Windows PC for one VMnet switch | Tick "Connect a host virtual adapter" |
+| **Network adapter / NIC** | The network card of a machine | `ens33`, `ens34` in Linux |
 | **VMnet2 / VMnet8** | Virtual network switches inside VMware | VMnet8 = NAT to the internet; VMnet2 = isolated lab |
 
 ## Phase 1A – the service desk
