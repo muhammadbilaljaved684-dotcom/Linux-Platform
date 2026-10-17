@@ -108,4 +108,9 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Link count** | How many names a file has; data is freed when it reaches 0 | Third column of `ls -l` |
 | **Disk / block device** | A storage drive | `sda` (system), `sdb`, `sdc` (data); listed by `lsblk` |
 | **Partition** | A section of a disk | `sda1`, `sda2`, … |
+| **PV / VG / LV** | Disk space handed to LVM / the pool / a slice of the pool used as a drive | `pvs`, `vgs`, `lvs`; grow with `lvextend -r` |
+| **Mount** | Make a formatted volume usable at a folder | `/` on Linux; a drive letter on Windows |
+| **Docker image / container** | The installer / the running program made from it | `docker images`, `docker ps` |
+| **Mounted folder (Docker volume)** | A host folder shown inside a container, where it keeps its data | Survives when the container is replaced |
+| **Storage Spaces / Storage Pool** | Windows version of LVM: disks → pool → virtual disks | Server Manager → File and Storage Services |
 | **LVM** | Lets you combine disks into one pool and grow storage later without downtime | Logical Volume Manager: PV → VG → LV |
