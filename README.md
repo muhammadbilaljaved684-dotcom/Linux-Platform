@@ -31,7 +31,7 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 |---|---|---|---|
 | 0 | Know the system: kernel, boot, targets | 🟡 gw01 done | [Day 1, part 1](docs/progress/day-01-2026-10-13.md) |
 | 1 | Network foundation: static IPs, routing, NAT, names, ports | ✅ Steps 1.1–1.9, snapshot taken | [Day 1, part 2](docs/progress/day-01-2026-10-13-part2-network.md) · [Day 2](docs/progress/day-02-2026-10-15.md) |
-| 1A | Service desk: GLPI tickets and inventory | 🟡 svc01 installed and networked; GLPI next | [Day 3](docs/progress/day-03-2026-10-16.md) |
+| 1A | Service desk: GLPI tickets and inventory | 🟡 svc01 built; GLPI running in Docker; set-up next | [Day 3](docs/progress/day-03-2026-10-16.md) |
 | 2 | Storage: LVM, NFS, backups, snapshots | ⏳ (data disks ready) | |
 | 3 | Automation: systemd services and timers | ⏳ | |
 | 4 | Processes, signals, cgroups | ⏳ | |

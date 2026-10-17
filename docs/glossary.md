@@ -99,6 +99,9 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Escalation** | Passing a ticket to a higher level, with notes | Reassign to a higher group in GLPI |
 | **GLPI agent** | Small program on each server that reports its hardware and software | Not a person; creates no tickets |
 | **VPN** | A secure tunnel that puts a remote laptop "inside" the company network | WireGuard on gw01 (Phase 6A) |
+| **Docker Compose** | One file that describes several containers and starts them together | `compose.yaml`, `docker compose up -d` |
+| **.env file** | Settings and passwords for the containers, kept out of the main file | `chmod 600` – only root may read |
+| **HTTP status code** | The 3-digit answer of a web server | 200 OK · 404 not found · 500 server error |
 | **ITIL** | The common rule book for running IT services | IT Infrastructure Library |
 
 ## Storage (coming in Phase 2)
