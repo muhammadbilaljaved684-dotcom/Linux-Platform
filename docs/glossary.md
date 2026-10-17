@@ -97,6 +97,9 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **SLA** | The promised time to answer or fix | Service Level Agreement |
 | **L1 / L2 / L3** | Support levels: service desk → technical admins → experts/vendor | Ticket moves up only if the lower level cannot solve it |
 | **Escalation** | Passing a ticket to a higher level, with notes | Reassign to a higher group in GLPI |
+| **Dropdown (GLPI)** | A list of allowed values, such as statuses and locations | Setup → Dropdowns → Common |
+| **Mass update** | Change one field on many items at once | Tick items → Actions → Update |
+| **Inventory authentication** | Proof an agent must send before GLPI accepts its report | None in the lab; Basic Authentication in Phase 6 |
 | **GLPI agent** | Small program on each server that reports its hardware and software | Not a person; creates no tickets |
 | **VPN** | A secure tunnel that puts a remote laptop "inside" the company network | WireGuard on gw01 (Phase 6A) |
 | **Docker Compose** | One file that describes several containers and starts them together | `compose.yaml`, `docker compose up -d` |
