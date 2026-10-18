@@ -95,6 +95,9 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Knowledge base (KB)** | Written fixes so the next person solves it faster | KB articles |
 | **Asset inventory / CMDB** | A list of every machine and what is on it | Filled automatically by the GLPI agent |
 | **SLA** | The promised time to answer or fix | Service Level Agreement |
+| **Time to own / time to resolve** | How fast a technician must take a ticket / fix it | High: 1 h / 8 h in the Acme SLA |
+| **CSRF token** | One-time security code inside a web form; an old form stops working | Fix: open the page fresh |
+| **restart: unless-stopped** | Docker starts the container again after a crash or reboot | In `compose.yaml` |
 | **L1 / L2 / L3** | Support levels: service desk → technical admins → experts/vendor | Ticket moves up only if the lower level cannot solve it |
 | **Escalation** | Passing a ticket to a higher level, with notes | Reassign to a higher group in GLPI |
 | **Dropdown (GLPI)** | A list of allowed values, such as statuses and locations | Setup → Dropdowns → Common |
