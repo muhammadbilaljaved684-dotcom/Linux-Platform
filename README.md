@@ -27,14 +27,14 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 
 📄 **Complete report so far (Days 1–3, printable):** [Project-2-complete-so-far.pdf](docs/progress/Project-2-complete-so-far.pdf)
 
-**Phase 1A done for now – GLPI service desk on svc01, automatic inventory of all servers, first Change ticket** ([Day 3](docs/progress/day-03-2026-10-16.md) · [Day 4](docs/progress/day-04-2026-10-18.md)). **Next: Phase 2 – storage.** Phase 1 complete ✅ (snapshot `20-Network`) – Steps 1.5–1.9: SSH with keys from gw01 to every server; hard links, soft links and inodes proven (groundwork for the Phase 2 backups); named users, a team group and a no-login service account on app01; [Linux NAT vs cloud NAT](docs/nat-comparison.md) diagram.
+**Phase 1A done for now – GLPI service desk on svc01, automatic inventory of all servers, first Change ticket** ([Day 3](docs/progress/day-03-2026-10-16.md) · [Day 4](docs/progress/day-04-2026-10-18.md)). **Phase 2 in progress** – LVM pool built from empty disks, `/data` grown without downtime, NFS share from stor01 to app01 ([Day 4](docs/progress/day-04-2026-10-18.md)). Phase 1 complete ✅ (snapshot `20-Network`) – Steps 1.5–1.9: SSH with keys from gw01 to every server; hard links, soft links and inodes proven (groundwork for the Phase 2 backups); named users, a team group and a no-login service account on app01; [Linux NAT vs cloud NAT](docs/nat-comparison.md) diagram.
 
 | Phase | Topic | Status | Report |
 |---|---|---|---|
 | 0 | Know the system: kernel, boot, targets | 🟡 gw01 done | [Day 1, part 1](docs/progress/day-01-2026-10-13.md) |
 | 1 | Network foundation: static IPs, routing, NAT, names, ports | ✅ Steps 1.1–1.9, snapshot taken | [Day 1, part 2](docs/progress/day-01-2026-10-13-part2-network.md) · [Day 2](docs/progress/day-02-2026-10-15.md) |
 | 1A | Service desk: GLPI tickets and inventory | ✅ GLPI in Docker, inventory of all 4 servers, defaults locked, Change #1 (SLAs and categories added with the first tickets) | [Day 3](docs/progress/day-03-2026-10-16.md) · [Day 4](docs/progress/day-04-2026-10-18.md) |
-| 2 | Storage: LVM, NFS, backups, snapshots | ⏳ (data disks ready) | |
+| 2 | Storage: LVM, NFS, backups, snapshots | 🟡 LVM pool on stor01, /data grown live, NFS share to app01 ✅; backups and snapshots next | [Day 4](docs/progress/day-04-2026-10-18.md) |
 | 3 | Automation: systemd services and timers | ⏳ | |
 | 4 | Processes, signals, cgroups | ⏳ | |
 | 5 | Logging: journald, rsyslog, logrotate | ⏳ | |

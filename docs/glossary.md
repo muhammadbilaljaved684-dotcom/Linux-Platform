@@ -120,6 +120,13 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Link count** | How many names a file has; data is freed when it reaches 0 | Third column of `ls -l` |
 | **Disk / block device** | A storage drive | `sda` (system), `sdb`, `sdc` (data); listed by `lsblk` |
 | **Partition** | A section of a disk | `sda1`, `sda2`, … |
+| **/etc/fstab** | The list of what to mount at every boot | Test with `mount -a` before a reboot |
+| **UUID** | Permanent ID of a volume, never changes | `blkid` shows it |
+| **Extent** | The 4 MB blocks LVM hands out | 3 GiB = 768 extents |
+| **NFS** | Network File System: use another server's folder over the network | stor01 `/data/app` → app01 `/mnt/app` |
+| **/etc/exports** | NFS server's list of shared folders and who may use them | `exportfs -ra` applies it |
+| **root_squash** | NFS treats a client's root as "nobody" | Files arrive owned by `nobody` |
+| **_netdev / nofail** | fstab options for network disks: wait for the network / boot anyway if it is missing | app01 NFS line |
 | **PV / VG / LV** | Disk space handed to LVM / the pool / a slice of the pool used as a drive | `pvs`, `vgs`, `lvs`; grow with `lvextend -r` |
 | **Mount** | Make a formatted volume usable at a folder | `/` on Linux; a drive letter on Windows |
 | **Docker image / container** | The installer / the running program made from it | `docker images`, `docker ps` |
