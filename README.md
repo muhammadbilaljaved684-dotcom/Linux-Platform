@@ -25,6 +25,8 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 
 ## Where I am now
 
+🧾 **Cheat sheet:** [what makes a change survive a reboot](docs/persistence-cheatsheet.md)
+
 📄 **Complete report so far (Days 1–3, printable):** [Project-2-complete-so-far.pdf](docs/progress/Project-2-complete-so-far.pdf)
 
 **Phase 1A done for now – GLPI service desk on svc01, automatic inventory of all servers, first Change ticket** ([Day 3](docs/progress/day-03-2026-10-16.md) · [Day 4](docs/progress/day-04-2026-10-18.md)). **Phase 2 in progress** – LVM pool built from empty disks, `/data` grown without downtime, NFS share from stor01 to app01 ([Day 4](docs/progress/day-04-2026-10-18.md)). Phase 1 complete ✅ (snapshot `20-Network`) – Steps 1.5–1.9: SSH with keys from gw01 to every server; hard links, soft links and inodes proven (groundwork for the Phase 2 backups); named users, a team group and a no-login service account on app01; [Linux NAT vs cloud NAT](docs/nat-comparison.md) diagram.
