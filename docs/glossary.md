@@ -127,6 +127,11 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **/etc/exports** | NFS server's list of shared folders and who may use them | `exportfs -ra` applies it |
 | **root_squash** | NFS treats a client's root as "nobody" | Files arrive owned by `nobody` |
 | **_netdev / nofail** | fstab options for network disks: wait for the network / boot anyway if it is missing | app01 NFS line |
+| **tar archive** | Many files packed into one (compressed) file | `tar -czf` create · `-tzf` list · `-xzf` extract |
+| **rsync** | Smart copy: only what changed; keeps owners and permissions | `rsync -avh --delete src/ dst/` |
+| **Mirror** | A folder kept identical to the original – no history | `/backups/mirror` |
+| **--link-dest** | rsync compares with a previous backup and hard-links unchanged files | Versions with history for the space of the changes |
+| **Restore drill** | Deliberately restoring a "lost" file to prove backups work | Done through a GLPI Request ticket |
 | **PV / VG / LV** | Disk space handed to LVM / the pool / a slice of the pool used as a drive | `pvs`, `vgs`, `lvs`; grow with `lvextend -r` |
 | **Mount** | Make a formatted volume usable at a folder | `/` on Linux; a drive letter on Windows |
 | **Docker image / container** | The installer / the running program made from it | `docker images`, `docker ps` |
