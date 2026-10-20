@@ -132,6 +132,9 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Mirror** | A folder kept identical to the original – no history | `/backups/mirror` |
 | **--link-dest** | rsync compares with a previous backup and hard-links unchanged files | Versions with history for the space of the changes |
 | **Restore drill** | Deliberately restoring a "lost" file to prove backups work | Done through a GLPI Request ticket |
+| **LVM snapshot** | Frozen state of a whole volume at one moment – an undo button, not a backup | `lvcreate -s`, roll back with `lvconvert --merge` |
+| **Copy-on-write** | A snapshot stores only the old version of blocks that change afterwards | Its room (`Data%`) fills as the volume changes |
+| **Stale NFS mount** | A client left with an invalid connection after the server changed underneath | Fix: `umount -f -l`, restart `nfs-server`, mount again |
 | **PV / VG / LV** | Disk space handed to LVM / the pool / a slice of the pool used as a drive | `pvs`, `vgs`, `lvs`; grow with `lvextend -r` |
 | **Mount** | Make a formatted volume usable at a folder | `/` on Linux; a drive letter on Windows |
 | **Docker image / container** | The installer / the running program made from it | `docker images`, `docker ps` |
