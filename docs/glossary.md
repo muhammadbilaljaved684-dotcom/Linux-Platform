@@ -135,6 +135,10 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **LVM snapshot** | Frozen state of a whole volume at one moment – an undo button, not a backup | `lvcreate -s`, roll back with `lvconvert --merge` |
 | **Copy-on-write** | A snapshot stores only the old version of blocks that change afterwards | Its room (`Data%`) fills as the volume changes |
 | **Stale NFS mount** | A client left with an invalid connection after the server changed underneath | Fix: `umount -f -l`, restart `nfs-server`, mount again |
+| **Job control** | Run commands in the foreground or background, pause and resume them | `&`, `Ctrl+Z`, `bg`, `fg`, `jobs`, `kill %n` |
+| **nohup** | Keep a job running after logging out | `sudo nohup tar … > log 2>&1 &` |
+| **nice / renice** | CPU priority -20 (most important) … 19 (politest), at start / while running | `ionice` is the disk equivalent |
+| **D state** | "Uninterruptible sleep": a process waiting on disk or NFS I/O ignores signals until the I/O ends | `ps -o stat` shows `D` |
 | **PV / VG / LV** | Disk space handed to LVM / the pool / a slice of the pool used as a drive | `pvs`, `vgs`, `lvs`; grow with `lvextend -r` |
 | **Mount** | Make a formatted volume usable at a folder | `/` on Linux; a drive letter on Windows |
 | **Docker image / container** | The installer / the running program made from it | `docker images`, `docker ps` |
