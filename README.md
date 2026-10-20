@@ -37,7 +37,7 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 | 1 | Network foundation: static IPs, routing, NAT, names, ports | ✅ Steps 1.1–1.9, snapshot taken | [Day 1, part 2](docs/progress/day-01-2026-10-13-part2-network.md) · [Day 2](docs/progress/day-02-2026-10-15.md) |
 | 1A | Service desk: GLPI tickets and inventory | ✅ GLPI in Docker, inventory of all 4 servers, defaults locked, Change #1 (SLAs and categories added with the first tickets) | [Day 3](docs/progress/day-03-2026-10-16.md) · [Day 4](docs/progress/day-04-2026-10-18.md) |
 | 2 | Storage: LVM, NFS, backups, snapshots | ✅ LVM pool, /data grown live, NFS share (access tested), tar/rsync backups with hard-linked versions, restore via ticket, LVM snapshot rollback | [Day 4](docs/progress/day-04-2026-10-18.md) · [Day 5](docs/progress/day-05-2026-10-20.md) |
-| 3 | Automation: systemd services and timers | 🟡 Step 3.1 job control (bg/fg, nice, kill, nohup) with real uploads over NFS ✅; systemd timer next | [Day 5](docs/progress/day-05-2026-10-20.md) |
+| 3 | Automation: systemd services and timers | 🟡 Step 3.1 job control with real uploads over NFS ✅ · Step 3.2 disk-full alert as systemd service + timer, tested at 86 % ✅; nightly backup timer next | [Day 5](docs/progress/day-05-2026-10-20.md) |
 | 4 | Processes, signals, cgroups | ⏳ | |
 | 5 | Logging: journald, rsyslog, logrotate | ⏳ | |
 | 5A | Monitoring and alerting | ⏳ | |

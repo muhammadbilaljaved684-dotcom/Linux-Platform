@@ -139,6 +139,11 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **nohup** | Keep a job running after logging out | `sudo nohup tar … > log 2>&1 &` |
 | **nice / renice** | CPU priority -20 (most important) … 19 (politest), at start / while running | `ionice` is the disk equivalent |
 | **D state** | "Uninterruptible sleep": a process waiting on disk or NFS I/O ignores signals until the I/O ends | `ps -o stat` shows `D` |
+| **systemd service (oneshot)** | A unit that says how to run a program; oneshot = run once and finish | `/etc/systemd/system/disk-alert.service` |
+| **systemd timer** | A unit that says when to start a service – a modern cron | `OnBootSec`, `OnUnitActiveSec`; `systemctl list-timers` |
+| **daemon-reload** | Tell systemd to re-read unit files after creating or changing them | `sudo systemctl daemon-reload` |
+| **logger / journalctl -t** | Write a tagged message to the system log / read messages with that tag | `journalctl -t disk-alert` |
+| **bash -n** | Check a script for syntax errors without running it | No output = OK |
 | **PV / VG / LV** | Disk space handed to LVM / the pool / a slice of the pool used as a drive | `pvs`, `vgs`, `lvs`; grow with `lvextend -r` |
 | **Mount** | Make a formatted volume usable at a folder | `/` on Linux; a drive letter on Windows |
 | **Docker image / container** | The installer / the running program made from it | `docker images`, `docker ps` |
