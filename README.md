@@ -81,3 +81,7 @@ linux-platform/
 ## Results
 
 *Filled in with measured numbers after Phase 8: time to detect each alert, rebuild time, RTO/RPO, tickets handled.*
+
+---
+
+© 2026 Muhammad Bilal Javed. All rights reserved – you may read this project; copying or reuse is not permitted without written permission. See [LICENSE](LICENSE).
