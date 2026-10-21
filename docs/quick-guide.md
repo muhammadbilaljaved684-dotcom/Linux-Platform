@@ -1,7 +1,7 @@
 ---
 title: "Project 2 – Quick guide"
 subtitle: "Acme Analytics Linux Platform · story → commands → screenshots → final understanding"
-author: "Muhammad Bilal Javed · up to Phase 3 Step 3.3"
+author: "Muhammad Bilal Javed · up to Phase 3 Step 3.4"
 ---
 
 > For fast revision: each step keeps only **why** we did it, the **commands**, the **screenshots** and my **final understanding**. Full details, tables and issue analyses are in the day reports and the complete guide.
@@ -1695,3 +1695,85 @@ nc localhost 9999                                                # → hello fro
 ### Key understanding (in my own words)
 
 > In systemd, everything it manages is a **unit**: a small text file in `/etc/systemd/system/` that describes one thing, and the ending of the name says what kind. A **`.service`** says *how* to run a program, a **`.timer`** says *when* to start a service, a **`.socket`** says *which network port* to listen on, and a **`.target`** is a *group* of units, like `multi-user.target` (server mode). After creating or changing a unit, `systemctl daemon-reload` makes systemd read it; `enable` starts it at every boot and `--now` also starts it immediately. In Step 3.2 I used a service plus a timer for the disk alert. In Step 3.3 I used a **socket**: a rarely used service does not need to run all day, so systemd itself listens on the port (`hello.socket`, port 9999) and starts the program **only when someone connects**. The socket and the service are linked by their name (`hello`). With `Accept=yes`, each connection gets its own short-lived copy of the template `hello@.service` (the `@` means template), and `StandardOutput=socket` sends the program's output straight back through the connection to the client. `nc localhost 9999` returned *"hello from stor01 – started on demand"*; before and after, nothing was running. Real systems use the same idea, for example `ssh.socket`, `docker.socket` and `cups.socket`. My mistakes taught me three checks: the template needs the `@`, `ExecStart` needs a full path starting with `/`, and `systemd-analyze verify` checks a unit file before testing – like `bash -n` for scripts.
+
+<div style="page-break-before: always"></div>
+
+# Day 6 – 21 Oct: systemd units revised, custom target, inside server mode
+
+## 1. Revision – what a systemd unit really is
+
+💡 **In plain words:** before going on, I explained Steps 3.2 and 3.3 again in my own words and corrected what I had misunderstood.
+
+```
+TIMER:   disk-alert.timer ──same name──► disk-alert.service ──ExecStart──► disk-alert.sh ──logger──► journal
+            WHEN                             HOW                              WHAT
+SOCKET:  client connects :9999 ──► hello.socket ──same name──► one copy of hello@.service ──► answer to client ──► copy ends
+```
+
+### Key understanding (in my own words)
+
+> **systemd** is the program that starts and manages services on a Linux server. Everything it manages (SSH, Docker, my disk alert) is a **unit**: a small settings file that says how something should run. Linux's own units are in `/lib/systemd/system/` (for example `ssh.service` and `ssh.socket`), and the units I create for automation go in `/etc/systemd/system/`. The ending of the name says the type: **`.service`** = **how** to run a program, **`.timer`** = **when** to run it, **`.socket`** = **which port** to listen on, and **`.target`** = a **group** of units that start together. After creating or changing a unit I run `systemctl daemon-reload`, and `enable --now` starts it now and at every boot.
+>
+> **Timer (Step 3.2):** the script `/usr/local/bin/disk-alert.sh` checks how full `/data` is and writes a warning to the journal only if usage reaches the threshold (80 %). `disk-alert.service` says **how** to run it (`Type=oneshot`, `ExecStart=` the script), and `disk-alert.timer` says **when** – 2 minutes after boot, then every 5 minutes. The timer finds its service **by the same first name** (`disk-alert`); `WantedBy=timers.target` only makes the timer start at every boot. The chain is **timer → service → script → journal**.
+>
+> **Socket (Step 3.3):** here the trigger is a **connection**, not a time. A rarely used service does not need to run all day, so **systemd itself listens on the port** and starts the program only when someone connects. `hello.socket` says `ListenStream=9999` and finds its service by the same first name, `hello`. With **`Accept=yes`**, every connection gets **its own short-lived copy** of the service – that is why the service is a **template**, `hello@.service`: the `@` means one file, many copies, one per connection. `ExecStart=/bin/sh -c 'echo …'` is the program, and **`StandardOutput=socket`** sends its output straight back through the connection to the client. I tested it with `nc localhost 9999` and got *"hello from stor01 – started on demand"*; the copy ended, so nothing was running before or after. The chain is **client connects → socket → one copy of the service → answer → copy ends**. Real servers use this too: with `ssh.socket`, systemd holds port 22 and starts `ssh.service` on the first connection (with `Accept=no`, one sshd handles all connections itself – no template). On stor01, `ssh.socket` is disabled and `ssh.service` runs all the time – the classic choice for a server admins use daily. My three lessons: a per-connection service needs the `@`, `ExecStart` needs a full path starting with `/`, and `systemd-analyze verify` checks a unit before I use it.
+
+## 2. Step 3.4 – a custom target: one command for the whole Acme stack
+
+💡 **The story:** stor01 now has several Acme units of my own – the disk alert, the hello socket, later the nightly backup. During maintenance an admin should not have to remember every name. One group, **`acme-stack.target`**, starts them all with one command – the same idea as `multi-user.target`, but for Acme.
+
+```bash
+sudo tee /etc/systemd/system/acme-stack.target > /dev/null <<'EOF'
+[Unit]
+Description=Acme services group
+Wants=disk-alert.timer hello.socket
+AllowIsolate=yes
+EOF
+sudo systemd-analyze verify /etc/systemd/system/acme-stack.target
+sudo systemctl daemon-reload
+
+# test: stop both members, then start the whole group with ONE command
+sudo systemctl stop disk-alert.timer hello.socket
+systemctl is-active disk-alert.timer hello.socket      # inactive inactive
+sudo systemctl start acme-stack.target
+systemctl is-active disk-alert.timer hello.socket      # active active
+systemctl list-dependencies acme-stack.target          # the group as a tree
+```
+
+📸 **Evidence – both members stopped, one `start` of the target, both active again; the group tree (the yellow line is Ubuntu's own `snapd.service`, not my file):**
+
+![acme-stack target](images/day-06/01-stor01-acme-stack-target.png)
+
+### Key understanding (in my own words)
+
+> A **target** is a unit that **groups other units** – services, timers or sockets – so that starting the target starts all its members with one command. Linux's own targets are in `/lib/systemd/system/`: `timers.target` holds all the timers (that is why each timer has `WantedBy=timers.target`), and `multi-user.target` is the normal **server state** – networking, SSH and all other services, with text login and no desktop. `graphical.target` is `multi-user.target` plus the graphical desktop, so targets can contain other targets; my servers boot to `multi-user.target`. On stor01 I created my own group, `acme-stack.target`, and `Wants=disk-alert.timer hello.socket` made both units its members. To test it, I stopped both (`inactive inactive`), started only `acme-stack.target`, and both became `active` again; `systemctl list-dependencies acme-stack.target` showed the group as a tree. In a real company this is how an admin brings a whole application stack back after maintenance with one command – for example `company-app.target` – instead of remembering every service name.
+
+## 3. Reference – looking inside the real server
+
+💡 **In plain words:** to see that these ideas are not only lab examples, I looked at how Ubuntu itself uses sockets, targets and timers on stor01.
+
+```bash
+# stor01
+systemctl list-sockets                                         # 29 sockets held by systemd – hello.socket on [::]:9999
+sudo systemctl status ssh.socket ssh.service                   # socket mode or always-on?
+systemctl list-dependencies multi-user.target --no-pager       # what "server mode" contains
+ls /etc/systemd/system/multi-user.target.wants/                # members I or packages enabled
+ls /etc/systemd/system/timers.target.wants/
+ls /etc/systemd/system/sockets.target.wants/
+```
+
+📸 **Evidence – `ssh.socket` disabled and inactive, `ssh.service` enabled and running since boot (5.2 MB); `ExecStartPre=/usr/sbin/sshd -t` tests the configuration before starting:**
+
+![ssh socket vs service](images/day-06/02-stor01-ssh-socket-disabled-service-running.png)
+
+📸 **Evidence – `multi-user.target` contains other targets: `timers.target` with my `disk-alert.timer` next to Ubuntu's own timers (`apt-daily`, `logrotate`, `fstrim`), `getty.target` with the console login `getty@tty1.service` (a template again), and `nfs-client.target` / `remote-fs.target`:**
+
+![multi-user tree](images/day-06/03-stor01-multi-user-tree-timers-getty-nfs.png)
+
+📸 **Evidence – `enable` = a link in a `….wants/` folder: `ssh.service`, `nfs-server.service`, `glpi-agent.service` in `multi-user.target.wants/`; `disk-alert.timer` in `timers.target.wants/`; `hello.socket` in `sockets.target.wants/`:**
+
+![wants folders](images/day-06/04-stor01-wants-folders.png)
+
+### Key understanding (in my own words)
+
+> `systemctl list-dependencies multi-user.target` showed me what "server mode" really is: a tree of units. Its direct members are services like `cron`, `rsyslog`, `nfs-server`, `rpcbind`, `ssh`, `glpi-agent` and `open-vm-tools`, plus `.mount` units – mounts are units too. It also contains **other targets**: `timers.target`, where my `disk-alert.timer` sits next to Ubuntu's own timers (`apt-daily`, `logrotate`, `fstrim`); `sockets.target` with `hello.socket`; `getty.target`, whose `getty@tty1.service` is the console login and also a template with `@`; and `remote-fs.target` for NFS. The `….wants/` folders in `/etc/systemd/system/` show how membership works: `enable` simply creates a link in the folder of the target named in `WantedBy=`. On stor01, `ssh.socket` is disabled and `ssh.service` always runs, and its `ExecStartPre=sshd -t` tests the configuration before every start. So a target is a group, groups can contain groups, `enable` adds a member, and booting the server simply means systemd starting this whole tree.

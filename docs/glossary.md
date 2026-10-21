@@ -25,7 +25,7 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **GRUB** | The program that picks and loads the operating system at start | Bootloader |
 | **systemd** | The "manager" that starts and supervises all services | Init system, PID 1 |
 | **Service** | A program running in the background (e.g. SSH, web server) | systemd unit |
-| **Target** | A start-up "mode" – desktop or server | `graphical.target` vs `multi-user.target` |
+| **Target** | A unit that groups other units so they start together; also a start-up "mode" | `multi-user.target` = server mode · `graphical.target` = + desktop · `acme-stack.target` |
 | **Baseline** | A record of how the system looked before changes | Reference for troubleshooting and audits |
 
 ## Phase 1 – the network
@@ -148,6 +148,9 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Socket activation** | systemd listens on a port and starts the service only when a client connects | `hello.socket` + `hello@.service`; real: `ssh.socket`, `docker.socket` |
 | **Template unit (`@`)** | One unit file, many instances – e.g. one per connection | `hello@.service` |
 | **systemd-analyze verify** | Check a unit file for mistakes before using it | Like `bash -n` for scripts |
+| **.wants folder** | `enable` creates a link here – the link makes a unit a member of a target | `/etc/systemd/system/timers.target.wants/disk-alert.timer` |
+| **Accept=yes / no** | One service copy per connection (template `@`) / one service handles all connections | `hello.socket` / `ssh.socket` |
+| **ExecStartPre** | A command run before the service starts – often a config test | `sshd -t` in `ssh.service` |
 | **PV / VG / LV** | Disk space handed to LVM / the pool / a slice of the pool used as a drive | `pvs`, `vgs`, `lvs`; grow with `lvextend -r` |
 | **Mount** | Make a formatted volume usable at a folder | `/` on Linux; a drive letter on Windows |
 | **Docker image / container** | The installer / the running program made from it | `docker images`, `docker ps` |
