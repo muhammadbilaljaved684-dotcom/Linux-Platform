@@ -151,6 +151,10 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **.wants folder** | `enable` creates a link here – the link makes a unit a member of a target | `/etc/systemd/system/timers.target.wants/disk-alert.timer` |
 | **Accept=yes / no** | One service copy per connection (template `@`) / one service handles all connections | `hello.socket` / `ssh.socket` |
 | **ExecStartPre** | A command run before the service starts – often a config test | `sshd -t` in `ssh.service` |
+| **cron / crontab** | The classic Linux scheduler / each user's job list – one line per job: 5 time fields + command | `crontab -e`, `*/2 * * * *` = every 2 min |
+| **OnCalendar** | Timer setting for a calendar time | `*-*-* 02:00:00` = every night at 02:00 |
+| **Persistent=true** | Run a missed timer job at the next boot | Catch-up that cron does not have |
+| **add-wants** | Make a unit a member of a target (link in `<target>.wants/`) | `systemctl add-wants acme-stack.target nightly-backup.timer` |
 | **PV / VG / LV** | Disk space handed to LVM / the pool / a slice of the pool used as a drive | `pvs`, `vgs`, `lvs`; grow with `lvextend -r` |
 | **Mount** | Make a formatted volume usable at a folder | `/` on Linux; a drive letter on Windows |
 | **Docker image / container** | The installer / the running program made from it | `docker images`, `docker ps` |

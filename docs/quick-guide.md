@@ -1,7 +1,7 @@
 ---
 title: "Project 2 – Quick guide"
 subtitle: "Acme Analytics Linux Platform · story → commands → screenshots → final understanding"
-author: "Muhammad Bilal Javed · up to Phase 3 Step 3.4"
+author: "Muhammad Bilal Javed · Phase 3 complete"
 ---
 
 > For fast revision: each step keeps only **why** we did it, the **commands**, the **screenshots** and my **final understanding**. Full details, tables and issue analyses are in the day reports and the complete guide.
@@ -1698,7 +1698,7 @@ nc localhost 9999                                                # → hello fro
 
 <div style="page-break-before: always"></div>
 
-# Day 6 – 21 Oct: systemd units revised, custom target, inside server mode
+# Day 6 – 21 Oct: custom target, cron vs timer, nightly backup – Phase 3 complete
 
 ## 1. Revision – what a systemd unit really is
 
@@ -1777,3 +1777,121 @@ ls /etc/systemd/system/sockets.target.wants/
 ### Key understanding (in my own words)
 
 > `systemctl list-dependencies multi-user.target` showed me what "server mode" really is: a tree of units. Its direct members are services like `cron`, `rsyslog`, `nfs-server`, `rpcbind`, `ssh`, `glpi-agent` and `open-vm-tools`, plus `.mount` units – mounts are units too. It also contains **other targets**: `timers.target`, where my `disk-alert.timer` sits next to Ubuntu's own timers (`apt-daily`, `logrotate`, `fstrim`); `sockets.target` with `hello.socket`; `getty.target`, whose `getty@tty1.service` is the console login and also a template with `@`; and `remote-fs.target` for NFS. The `….wants/` folders in `/etc/systemd/system/` show how membership works: `enable` simply creates a link in the folder of the target named in `WantedBy=`. On stor01, `ssh.socket` is disabled and `ssh.service` always runs, and its `ExecStartPre=sshd -t` tests the configuration before every start. So a target is a group, groups can contain groups, `enable` adds a member, and booting the server simply means systemd starting this whole tree.
+
+## 4. Step 3.5 part A – cron, the old way
+
+💡 **The story:** before systemd timers, Linux ran scheduled jobs with **cron**. Many companies still have hundreds of cron jobs – backups, reports, clean-ups – so an admin must be able to read and write them. I ran the disk check with cron for a few minutes, compared it with the timer, then removed it.
+
+```bash
+crontab -e                       # my job list – first time: choose 1 (nano)
+# added at the bottom:
+*/2 * * * * THRESHOLD=15 /usr/local/bin/disk-alert.sh
+
+crontab -l                                   # the line is there
+grep CRON /var/log/syslog | tail -3          # cron started the job
+journalctl -t disk-alert -n 3                # the warnings the script wrote
+crontab -e                                   # afterwards: line deleted again
+```
+
+```
+*/2    *     *     *      *        command
+min   hour   day  month  weekday          * = every · */2 = every 2 · 0 2 * * * = daily at 02:00
+```
+
+📸 **Evidence – my crontab line; `syslog`: cron started it as `bilal_003` at 20:08, next to Ubuntu's own hourly cron jobs run as root:**
+
+![crontab and syslog](images/day-06/05-stor01-crontab-line-cron-in-syslog.png)
+
+📸 **Evidence – the script's warnings at 20:08 and 20:10 – exactly every 2 minutes (the 86 % line is yesterday's test, before a reboot):**
+
+![cron every 2 min](images/day-06/06-stor01-cron-runs-disk-alert-every-2-min.png)
+
+```
+cron (every 2 min) ──runs──► disk-alert.sh ──THRESHOLD=15 given──► 19 ≥ 15? yes ──logger──► journal
+```
+
+**Lesson:** the crontab line only says **when** to run the script – not where warnings go. The **script** decides that: `THRESHOLD="${THRESHOLD:-80}"` takes the value I pass (15), and only if usage ≥ threshold does `logger` write to the journal. That is why the same script works unchanged with cron and with a systemd timer. The server clock is UTC, so 20:08 is 22:08 Berlin time.
+
+### Key understanding (in my own words)
+
+> Before systemd timers, Linux ran scheduled jobs with **cron**, and many companies still use it, so an admin must be able to read it. Each user has their own job list, the **crontab**. `crontab -e` opens it in an editor (nano), and every job is **one line**: five time fields (minute, hour, day of month, month, weekday) followed by the command. On stor01 I added `*/2 * * * * THRESHOLD=15 /usr/local/bin/disk-alert.sh`. `*/2` means every 2 minutes, and each `*` means every hour, day, month and weekday. Cron, like a timer, only **runs** the script; the crontab line does not say where warnings go. The **script** decides that. `THRESHOLD="${THRESHOLD:-80}"` takes the value I pass (15), or 80 if none is given. `df` reads how full `/data` is (19 %), and only if 19 ≥ 15 does `logger` write the warning to the journal. The chain is **cron → script → logger → journal**. `crontab -l` showed my line. `grep CRON /var/log/syslog` proved that cron started the job as `bilal_003` at 20:08, next to Ubuntu's own hourly cron jobs run as root. `journalctl -t disk-alert` showed *"/data is 19% full (threshold 15%)"* at 20:08 and 20:10, exactly every 2 minutes. So the same script works unchanged with cron and with a systemd timer. Cron is simple, one line, but it has two weaknesses. First, **the logs are split**: the start of the job is in `/var/log/syslog`, and the script's warning is in the journal. Second, **missed runs are lost**: if the server is off at the scheduled time, cron simply skips that run and nothing tells me. A systemd timer solves both. `journalctl -u <name>.service` shows the start, the output and the result in one place, and `Persistent=true` runs a missed job at the next boot. Then I removed the cron line again with `crontab -e`.
+
+## 5. Step 3.5 part B – the nightly backup runs by itself
+
+💡 **The story:** in Phase 2 I made versioned backups by hand. A backup that depends on someone remembering it will one day be forgotten. Now stor01 backs up `/data/app` **every night at 02:00**, while nobody uploads – and if the server was off at 02:00, it **catches up at the next boot**.
+
+```
+nightly-backup.timer ──02:00──► nightly-backup.service ──runs──► nightly-backup.sh ──► /backups/<date> + latest + "finished" in journal
+      WHEN                            HOW                            WHAT
+```
+
+```bash
+# 1. The script – WHAT
+sudo tee /usr/local/bin/nightly-backup.sh > /dev/null <<'EOF'
+#!/bin/bash
+# Nightly versioned backup of /data/app, keep 7 days
+TODAY=$(date +%F)
+rsync -a --delete --link-dest=/backups/latest /data/app/ /backups/$TODAY/
+ln -sfn /backups/$TODAY /backups/latest
+find /backups -maxdepth 1 -type d -name '20*' -mtime +7 -exec rm -rf {} +
+logger -t nightly-backup "backup of /data/app to /backups/$TODAY finished"
+EOF
+sudo chmod +x /usr/local/bin/nightly-backup.sh      # sudo – the file belongs to root
+bash -n /usr/local/bin/nightly-backup.sh            # syntax check – for scripts only
+
+# 2. The service – HOW
+sudo tee /etc/systemd/system/nightly-backup.service > /dev/null <<'EOF'
+[Unit]
+Description=Nightly backup of /data/app
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/nightly-backup.sh
+EOF
+
+# 3. The timer – WHEN
+sudo tee /etc/systemd/system/nightly-backup.timer > /dev/null <<'EOF'
+[Unit]
+Description=Nightly backup at 02:00
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+[Install]
+WantedBy=timers.target
+EOF
+
+sudo systemd-analyze verify /etc/systemd/system/nightly-backup.*   # check unit files
+sudo systemctl daemon-reload
+sudo systemctl enable --now nightly-backup.timer
+systemctl list-timers | grep nightly
+
+# 4. Test now – don't wait until 02:00
+sudo systemctl start nightly-backup.service
+ls -l /backups
+journalctl -u nightly-backup.service -n 5
+
+# 5. Add the trigger to the Acme group
+sudo systemctl add-wants acme-stack.target nightly-backup.timer
+systemctl list-dependencies acme-stack.target
+```
+
+📸 **Evidence – the timer unit:**
+
+![timer unit](images/day-06/07-stor01-nightly-backup-timer-unit.png)
+
+📸 **Evidence – `enable --now` creates the link in `timers.target.wants/`; `verify` shows no error for my files; next run Thu 02:00 UTC:**
+
+![enable verify list-timers](images/day-06/08-stor01-enable-verify-list-timers-0200.png)
+
+📸 **Evidence – `/backups/2026-10-21` created, `latest → /backups/2026-10-21`; the journal shows start, "finished" and *Deactivated successfully* in one place; the timer added to `acme-stack.target`:**
+
+![backup folder journal add-wants](images/day-06/09-stor01-backup-folder-latest-journal-add-wants.png)
+
+📸 **Evidence – the Acme group now has three members:**
+
+![three members](images/day-06/10-stor01-acme-stack-three-members.png)
+
+**Lessons:** `bash -n` is for **scripts** only – a `.service` or `.timer` file is checked with `systemd-analyze verify`. A heredoc must end with exactly the word it started with (`<<'EOF'` … `EOF`); a mistyped start word leaves the shell waiting at `>` – press Ctrl+C and type it again. The first run copied the 700 MB of new uploads (5.3 s CPU); a second run was instant because nothing had changed – the hard-link idea at work.
+
+### Key understanding (in my own words)
+
+> The nightly backup now runs by itself on stor01, with the pattern **timer → service → script → journal**. The script `/usr/local/bin/nightly-backup.sh` does what I did by hand in Phase 2. `rsync -a --delete --link-dest=/backups/latest` copies `/data/app` into a folder named with today's date, and unchanged files become hard links that take no extra space. `ln -sfn` moves the `latest` link to the new folder, `find … -mtime +7` deletes versions older than 7 days, and `logger` writes "finished" to the journal. `nightly-backup.service` says **how** (`Type=oneshot`), and `nightly-backup.timer` says **when**: `OnCalendar=*-*-* 02:00:00`, every night, plus `Persistent=true`, which runs a missed backup at the next boot if the server was off. `systemd-analyze verify` checked the unit files (`bash -n` is only for scripts), and `enable --now` created the link in `timers.target.wants/`. `list-timers` shows the next run at 02:00 UTC (04:00 in Berlin, because the server runs on UTC). I didn't wait for the night: `systemctl start nightly-backup.service` created `/backups/2026-10-21`, moved `latest` to it, and `journalctl -u nightly-backup.service` showed the start, the "finished" message and *Deactivated successfully* all in one place. That is the advantage over cron, together with the catch-up. Finally, `systemctl add-wants acme-stack.target nightly-backup.timer` made the backup the third member of the Acme group, next to `disk-alert.timer` and `hello.socket`. A target can hold **any kind of unit**: services, timers, sockets, mounts or other targets. What I add depends on how the job should run. A service that must run **all the time**, like the NFS server or a web server, goes into the target **as a service**; `multi-user.target` holds `ssh.service` and `nfs-server.service` this way. A job that runs **at a time** or **on a connection** goes in through its **trigger**, the timer or socket, which starts the service with the same name only when needed. That is why I added `nightly-backup.timer` and not `nightly-backup.service`. If the service were in the target, every start of the target would run a backup immediately, for example in the middle of the day after maintenance.
