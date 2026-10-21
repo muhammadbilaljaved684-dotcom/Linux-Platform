@@ -144,6 +144,10 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **daemon-reload** | Tell systemd to re-read unit files after creating or changing them | `sudo systemctl daemon-reload` |
 | **logger / journalctl -t** | Write a tagged message to the system log / read messages with that tag | `journalctl -t disk-alert` |
 | **bash -n** | Check a script for syntax errors without running it | No output = OK |
+| **systemd unit** | A small text file describing one thing systemd manages; the ending says what | `.service` how · `.timer` when · `.socket` port · `.target` group |
+| **Socket activation** | systemd listens on a port and starts the service only when a client connects | `hello.socket` + `hello@.service`; real: `ssh.socket`, `docker.socket` |
+| **Template unit (`@`)** | One unit file, many instances – e.g. one per connection | `hello@.service` |
+| **systemd-analyze verify** | Check a unit file for mistakes before using it | Like `bash -n` for scripts |
 | **PV / VG / LV** | Disk space handed to LVM / the pool / a slice of the pool used as a drive | `pvs`, `vgs`, `lvs`; grow with `lvextend -r` |
 | **Mount** | Make a formatted volume usable at a folder | `/` on Linux; a drive letter on Windows |
 | **Docker image / container** | The installer / the running program made from it | `docker images`, `docker ps` |

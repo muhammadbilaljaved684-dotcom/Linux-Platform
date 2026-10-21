@@ -1,7 +1,7 @@
 ---
 title: "Project 2 – Quick guide"
 subtitle: "Acme Analytics Linux Platform · story → commands → screenshots → final understanding"
-author: "Muhammad Bilal Javed · up to Phase 3 Step 3.2"
+author: "Muhammad Bilal Javed · up to Phase 3 Step 3.3"
 ---
 
 > For fast revision: each step keeps only **why** we did it, the **commands**, the **screenshots** and my **final understanding**. Full details, tables and issue analyses are in the day reports and the complete guide.
@@ -1344,7 +1344,7 @@ cat /data/app/test.txt                          # "hello from app01"
 
 <div style="page-break-before: always"></div>
 
-# Day 5 – 20 Oct: snapshot rollback, job control, systemd timer
+# Day 5 – 20 Oct: snapshot rollback, job control, systemd timer and socket
 
 ## 1. Break test – reachable is not allowed (Step 2.2)
 
@@ -1646,3 +1646,52 @@ df -h /data                                        # back to 19 %
 > Files uploaded on app01 (today by me as a simulation, later by customers once the app is published through gw01) go into `/mnt/app`, which is really `/data` on stor01, the `lvdata` volume. If `/data` fills up, new uploads fail and the app breaks, often before anyone in IT notices. In Phase 2 I could grow `/data` with LVM, but only if someone knows it is filling up. So, like a phone that warns "storage almost full", stor01 should **watch its own disk and warn us by itself**, without a human running a command. The script `/usr/local/bin/disk-alert.sh` reads how full `/data` is with `df`, keeps only the number with `tr -dc '0-9'` (so `19%` becomes `19`), and compares it with a threshold: 80 % normally, 15 % for my test. If the usage is greater than or equal to the threshold, `logger` writes a **warning to the system log**, tagged `disk-alert`, which I read with `journalctl -t disk-alert`. I checked the script with `bash -n` and ran it once by hand.
 >
 > Then I turned it into automation: `disk-alert.service` says *how* to run it (`Type=oneshot` – run once and finish), and `disk-alert.timer` says *when* – 2 minutes after boot and then every 5 minutes. `systemctl enable --now` started the timer and made it survive reboots; `status` showed *TriggeredBy: disk-alert.timer* and *SUCCESS*. The timer wakes the service, the service runs the script, and the script writes a warning only if `/data` is too full. With the test limit, warnings appeared every few minutes by themselves. With the real limit of 80 % (`sed` + `daemon-reload`) the script stayed silent at 19 %; a simulated 2.5 GB upload (`fallocate`) pushed `/data` to 86 %, and the alert *"/data is 86% full (threshold 80%)"* appeared. stor01 now watches its own disk, and the warning comes early enough to grow the volume or clean up.
+
+## 8. Step 3.3 – socket activation: start a service only when someone connects
+
+💡 **The story:** a rarely used service does not need to run all day and use memory. Instead, **systemd itself listens on the port** and starts the program only when a client connects – then it ends again. Real systems use this: `ssh.socket` (newer Ubuntu), `docker.socket`, `cups.socket` (printing).
+
+```
+client connects to :9999 ──► hello.socket (systemd listens)
+                               │ same name "hello" → template hello@.service
+                               ▼
+                      one copy starts → echo → output back to the client → ends
+```
+
+```bash
+sudo tee /etc/systemd/system/hello.socket > /dev/null <<'EOF'
+[Socket]
+ListenStream=9999
+Accept=yes
+[Install]
+WantedBy=sockets.target
+EOF
+sudo tee /etc/systemd/system/hello@.service > /dev/null <<'EOF'
+[Service]
+ExecStart=/bin/sh -c 'echo "hello from stor01 – started on demand"'
+StandardOutput=socket
+EOF
+sudo systemd-analyze verify /etc/systemd/system/hello@.service   # check the unit before testing
+sudo systemctl daemon-reload
+sudo systemctl enable --now hello.socket
+ss -tlnp | grep 9999                                             # LISTEN *:9999 – systemd holds the port
+nc localhost 9999                                                # → hello from stor01 – started on demand
+```
+
+📸 **Evidence – the socket unit:**
+
+![socket unit](images/day-05/22-stor01-hello-socket-unit.png)
+
+📸 **Evidence – enabled; `LISTEN *:9999`:**
+
+![listening](images/day-05/23-stor01-socket-enabled-listening-9999.png)
+
+📸 **Evidence – the greeting on connect; `systemd-analyze verify` shows no error for my file (the yellow line is about Ubuntu's own `snapd.service`):**
+
+![on demand](images/day-05/24-stor01-hello-service-on-demand.png)
+
+**Lessons from my mistakes:** the service was first named `hello.service` (with `Accept=yes` it must be the template `hello@.service`), the section was misspelled (`[Servuce]`), and `ExecStart` lacked the leading `/` – each time `nc` just waited. `ExecStart` needs a full path, `cat` the unit once, and `systemd-analyze verify` catches such mistakes before testing.
+
+### Key understanding (in my own words)
+
+> In systemd, everything it manages is a **unit**: a small text file in `/etc/systemd/system/` that describes one thing, and the ending of the name says what kind. A **`.service`** says *how* to run a program, a **`.timer`** says *when* to start a service, a **`.socket`** says *which network port* to listen on, and a **`.target`** is a *group* of units, like `multi-user.target` (server mode). After creating or changing a unit, `systemctl daemon-reload` makes systemd read it; `enable` starts it at every boot and `--now` also starts it immediately. In Step 3.2 I used a service plus a timer for the disk alert. In Step 3.3 I used a **socket**: a rarely used service does not need to run all day, so systemd itself listens on the port (`hello.socket`, port 9999) and starts the program **only when someone connects**. The socket and the service are linked by their name (`hello`). With `Accept=yes`, each connection gets its own short-lived copy of the template `hello@.service` (the `@` means template), and `StandardOutput=socket` sends the program's output straight back through the connection to the client. `nc localhost 9999` returned *"hello from stor01 – started on demand"*; before and after, nothing was running. Real systems use the same idea, for example `ssh.socket`, `docker.socket` and `cups.socket`. My mistakes taught me three checks: the template needs the `@`, `ExecStart` needs a full path starting with `/`, and `systemd-analyze verify` checks a unit file before testing – like `bash -n` for scripts.
