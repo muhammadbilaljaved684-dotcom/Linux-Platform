@@ -155,6 +155,13 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **OnCalendar** | Timer setting for a calendar time | `*-*-* 02:00:00` = every night at 02:00 |
 | **Persistent=true** | Run a missed timer job at the next boot | Catch-up that cron does not have |
 | **add-wants** | Make a unit a member of a target (link in `<target>.wants/`) | `systemctl add-wants acme-stack.target nightly-backup.timer` |
+| **Load average** | Processes running + waiting for the CPU, averaged over 1, 5 and 15 minutes | Compare with `nproc`: 1 core, load 1.0 = fully busy |
+| **PID / PPID** | A process's own number / the number of the process that started it | `ps -eo pid,ppid,cmd`, `ps -ef --forest` |
+| **SIGTERM / SIGKILL** | `kill -15` graceful stop with clean-up / `kill -9` forceful stop, no clean-up | Always SIGTERM first |
+| **Runaway vs hung job** | Busy at 100 % CPU and never finishes / stuck waiting at ~0 % CPU | `yes` / a process waiting on NFS |
+| **Primary / Replica (read replica)** | Live database / read-only copy of the same kind, updated by streaming the change log | Reports read the replica; a replica is not a backup |
+| **WAL / binlog** | The change log of PostgreSQL / MariaDB that replication streams to the replica | Write-ahead: log first, table second |
+| **ETL / data warehouse** | Extract, Transform, Load – copy data into a separate database built for reports | Power BI reads the data warehouse |
 | **PV / VG / LV** | Disk space handed to LVM / the pool / a slice of the pool used as a drive | `pvs`, `vgs`, `lvs`; grow with `lvextend -r` |
 | **Mount** | Make a formatted volume usable at a folder | `/` on Linux; a drive letter on Windows |
 | **Docker image / container** | The installer / the running program made from it | `docker images`, `docker ps` |
