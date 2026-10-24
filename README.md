@@ -38,7 +38,7 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 | 1A | Service desk: GLPI tickets and inventory | ✅ GLPI in Docker, inventory of all 4 servers, defaults locked, Change #1 (SLAs and categories added with the first tickets) | [Day 3](docs/progress/day-03-2026-10-16.md) · [Day 4](docs/progress/day-04-2026-10-18.md) |
 | 2 | Storage: LVM, NFS, backups, snapshots | ✅ LVM pool, /data grown live, NFS share (access tested), tar/rsync backups with hard-linked versions, restore via ticket, LVM snapshot rollback | [Day 4](docs/progress/day-04-2026-10-18.md) · [Day 5](docs/progress/day-05-2026-10-20.md) |
 | 3 | Automation: systemd services and timers | ✅ job control with real uploads over NFS · disk-full alert (service + timer) · socket activation · `acme-stack.target` · cron vs timer · nightly versioned backup by timer with catch-up | [Day 5](docs/progress/day-05-2026-10-20.md) · [Day 6](docs/progress/day-06-2026-10-21.md) |
-| 4 | Processes, signals, cgroups | 🟡 Step 4.1 – where a slow application comes from (primary/replica, ETL, files vs records), runaway process: find and stop it the right way | [Day 7](docs/progress/day-07-2026-10-24.md) |
+| 4 | Processes, signals, cgroups | 🟡 Step 4.1 ✅ runaway process on app01: found (ps, top, htop, load average, PID/PPID), stopped with SIGTERM, recorded as GLPI incident – plus where a slow application comes from (primary/replica, ETL, files vs records) | [Day 7](docs/progress/day-07-2026-10-24.md) |
 | 5 | Logging: journald, rsyslog, logrotate | ⏳ | |
 | 5A | Monitoring and alerting | ⏳ | |
 | 6 | Security hardening | ⏳ | |
