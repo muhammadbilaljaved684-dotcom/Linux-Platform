@@ -1,7 +1,7 @@
 ---
 title: "Project 2 – Quick guide"
 subtitle: "Acme Analytics Linux Platform · story → commands → screenshots → final understanding"
-author: "Muhammad Bilal Javed · Phase 4 Step 4.1 complete"
+author: "Muhammad Bilal Javed · up to Phase 4 Step 4.2"
 ---
 
 > For fast revision: each step keeps only **why** we did it, the **commands**, the **screenshots** and my **final understanding**. Full details, tables and issue analyses are in the day reports and the complete guide.
@@ -1898,7 +1898,7 @@ systemctl list-dependencies acme-stack.target
 
 <div style="page-break-before: always"></div>
 
-# Day 7 – 24 Oct: Phase 4 – where a slow app comes from, stopping a runaway process
+# Day 7 – 24 Oct: Phase 4 – slow app, runaway process, pipes
 
 ## 1. A question from industry – too many backups, and backup logs that grow too big
 
@@ -2008,3 +2008,49 @@ pgrep yes || echo "gone"                                    # check
 > **6. Processes, PID and PPID.** Every running program is a **process** with its own number, the **PID**. The **PPID** is the PID of the process that **started** it, its parent. Processes form a family tree, shown by `ps -ef --forest`. **systemd** (PID 1) starts all services at boot, so services such as `sshd` have PPID 1 and no shell. When I log in over SSH, sshd starts a copy of itself for my session, and that copy starts my **shell**, bash, the program that reads the commands I type and runs them. Every command I start, for example `yes` or `systemctl restart sshd`, gets its **own PID**, and its **PPID is my bash**. Processes started by the same bash therefore share the same PPID.
 >
 > **7. Finding and stopping the job on app01, always in this order.** **Simulate → Look → Identify → Stop politely → Check → (kill -9 only as a last resort) → Record.** **Simulate:** I first installed `htop` (a clearer live process viewer) and `stress-ng` (a test tool that creates CPU, memory or disk load on purpose, used later for limits). `yes > /dev/null &` creates a runaway job: `yes` prints the letter "y" without end, so it alone uses one full core; `>` sends this output to `/dev/null`, a special file where everything disappears and nothing is stored (it is not the `/bin` folder, which holds programs); and `&` runs it in the background. **Look:** `nproc` shows the number of cores, and `ps aux --sort=-%cpu | head -5`, `top` and `htop` list the processes using the most CPU. `yes` appears at the top with about 100 %, and the load average rises. **Identify:** `ps -eo user,pid,ppid,stat,%cpu,cmd` shows the **owner** (the user who started it), the PID, the PPID, the state (`R` = running), the CPU use and the **command** (`cmd`, the command line that started it, which shows what the program is). `ps -o user= -p $(pgrep yes)` shows only the owner, and `pgrep yes` shows only the PID. **Stop politely:** `kill -15` sends **SIGTERM**, a **graceful** stop: the program is asked to finish and clean up. **Check:** `pgrep yes || echo "gone"` prints "gone" when nothing is left (`||` means "if the first command finds nothing, run the second"). **Last resort:** `kill -9` sends **SIGKILL**, a **forceful** stop. The kernel removes the process at once and its clean-up never runs, so leftovers such as a lock file or a half-written file can remain; I use it only if a process ignores SIGTERM. **Record:** in a company, before stopping anything, I check who owns the process and whether it is important, asking the owner if needed. Afterwards I write a GLPI ticket: what happened, who owned the process, what I did and the result.
+
+## 4. Step 4.2 – pipes: output → input → output
+
+💡 **The story:** a pipe (`|`) passes the output of one program straight into the next as its input – no file in between. Admins use it every day, and it saves real disk space when moving big data: compress and send in one go, instead of first writing a temporary archive.
+
+```
+command 1 ──output──► | ──input──► command 2 ──output──► | ──input──► command 3 ──output──► screen
+```
+
+### 4.1 Hands-on – stream a compressed copy to another server (gw01 → stor01)
+
+```bash
+# gw01
+sudo apt install -y pv
+tar czf - /etc 2>/dev/null | pv | ssh stor01 "tar tzf - | wc -l"
+```
+
+📸 **Evidence – 548 KiB streamed in 1 s; stor01 counted 1,563 files; nothing was stored on either server. `pv` shows `<=>` instead of % because a stream's size is not known in advance:**
+
+![tar pv ssh](images/day-07/13-gw01-tar-pv-ssh-stream-to-stor01.png)
+
+```bash
+ps aux | sort -k3 -nr | head -3            # top 3 CPU users
+grep bash /etc/passwd | wc -l              # how many users have a bash shell
+pv shop.sql.gz | gunzip | mysql shop       # restore a dump with progress, no unpacked temp file
+```
+
+### 4.2 Reference only – named pipe (FIFO)
+
+```bash
+mkfifo /tmp/jobs                                                   # create the named pipe
+ls -l /tmp/jobs                                                    # prw-r--r-- … 0 … /tmp/jobs
+while read job < /tmp/jobs; do echo "processing: $job"; done       # terminal 1: the reader (worker)
+echo "build-report" > /tmp/jobs                                    # terminal 2: the writer
+rm /tmp/jobs                                                       # remove it
+
+# the same transfer as above, as two separately started parts
+mkfifo /tmp/stream
+tar czf /tmp/stream /etc &                                         # writes "a file" – really the pipe
+pv /tmp/stream | ssh stor01 "tar tzf - | wc -l"                    # reads it
+rm /tmp/stream
+```
+
+### Key understanding (in my own words)
+
+> A **pipe** (`|`) makes the output of one command the input of the next – **output → input → output** – with no file in between, like an assembly line, and only the last output reaches the screen. In `ps aux | sort -k3 -nr | head -3`, `ps` lists all processes, `sort` orders them by CPU and `head` keeps the top three. In real work pipes save time and disk space: on gw01, `tar czf - /etc | pv | ssh stor01 "tar tzf - | wc -l"` packed and compressed `/etc` into the pipe (`tar` packs many files into one stream: **c** create, **x** extract, **t** list, **z** gzip, **f -** = the pipe instead of a file), `pv` (**pipe viewer**) showed how much data passed and how fast (548 KiB in 1 second; a moving `<=>` instead of a percentage, because a stream's size is not known in advance), `ssh` carried the stream to stor01, and there `tar tzf -` listed what arrived and `wc -l` counted 1,563 files – nothing was stored on either server. With `tar xzf - -C /data` instead, stor01 would have unpacked it, which is a real copy to a new server without any temporary archive; the pipe saves the temporary copy, but the target still needs space for what is finally stored there. `pv` is also used to show progress and time left for long jobs like restoring a database dump (`pv shop.sql.gz | gunzip | mysql shop`). One bar `|` is a pipe; two bars `||` mean "or" – run the second command only if the first fails. A **named pipe (FIFO)** is a pipe with a name in the filesystem: a tube between two programs on the same server that stores nothing (size 0, type `p` in `ls -l`), hands data over in order and only once, and makes the writer wait until a reader is there. It is needed only when two programs cannot be joined with `|` in one command line – for example a tool that accepts only a file name, or two programs started separately. It is rare in daily admin work, so I kept it as a reference: when I see a `p` at the start of an `ls -l` line, I know it is a pipe, not a normal file.

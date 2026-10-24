@@ -162,6 +162,8 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Primary / Replica (read replica)** | Live database / read-only copy of the same kind, updated by streaming the change log | Reports read the replica; a replica is not a backup |
 | **WAL / binlog** | The change log of PostgreSQL / MariaDB that replication streams to the replica | Write-ahead: log first, table second |
 | **ETL / data warehouse** | Extract, Transform, Load – copy data into a separate database built for reports | Power BI reads the data warehouse |
+| **Pipe / named pipe (FIFO)** | `|` passes one command's output into the next / a pipe with a name for programs that cannot be joined with `|` | `tar czf - /etc \| ssh stor01 …` · `mkfifo` (type `p`) |
+| **pv (pipe viewer)** | Shows amount, speed, % and ETA of data flowing through a pipe | `pv dump.sql.gz \| gunzip \| mysql db` |
 | **PV / VG / LV** | Disk space handed to LVM / the pool / a slice of the pool used as a drive | `pvs`, `vgs`, `lvs`; grow with `lvextend -r` |
 | **Mount** | Make a formatted volume usable at a folder | `/` on Linux; a drive letter on Windows |
 | **Docker image / container** | The installer / the running program made from it | `docker images`, `docker ps` |
