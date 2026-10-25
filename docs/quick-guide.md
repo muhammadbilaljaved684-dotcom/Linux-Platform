@@ -1,7 +1,7 @@
 ---
 title: "Project 2 – Quick guide"
 subtitle: "Acme Analytics Linux Platform · story → commands → screenshots → final understanding"
-author: "Muhammad Bilal Javed · up to Phase 4 Step 4.2"
+author: "Muhammad Bilal Javed · up to Phase 4 Step 4.3 (part 1)"
 ---
 
 > For fast revision: each step keeps only **why** we did it, the **commands**, the **screenshots** and my **final understanding**. Full details, tables and issue analyses are in the day reports and the complete guide.
@@ -2054,3 +2054,117 @@ rm /tmp/stream
 ### Key understanding (in my own words)
 
 > A **pipe** (`|`) makes the output of one command the input of the next – **output → input → output** – with no file in between, like an assembly line, and only the last output reaches the screen. In `ps aux | sort -k3 -nr | head -3`, `ps` lists all processes, `sort` orders them by CPU and `head` keeps the top three. In real work pipes save time and disk space: on gw01, `tar czf - /etc | pv | ssh stor01 "tar tzf - | wc -l"` packed and compressed `/etc` into the pipe (`tar` packs many files into one stream: **c** create, **x** extract, **t** list, **z** gzip, **f -** = the pipe instead of a file), `pv` (**pipe viewer**) showed how much data passed and how fast (548 KiB in 1 second; a moving `<=>` instead of a percentage, because a stream's size is not known in advance), `ssh` carried the stream to stor01, and there `tar tzf -` listed what arrived and `wc -l` counted 1,563 files – nothing was stored on either server. With `tar xzf - -C /data` instead, stor01 would have unpacked it, which is a real copy to a new server without any temporary archive; the pipe saves the temporary copy, but the target still needs space for what is finally stored there. `pv` is also used to show progress and time left for long jobs like restoring a database dump (`pv shop.sql.gz | gunzip | mysql shop`). One bar `|` is a pipe; two bars `||` mean "or" – run the second command only if the first fails. A **named pipe (FIFO)** is a pipe with a name in the filesystem: a tube between two programs on the same server that stores nothing (size 0, type `p` in `ls -l`), hands data over in order and only once, and makes the writer wait until a reader is there. It is needed only when two programs cannot be joined with `|` in one command line – for example a tool that accepts only a file name, or two programs started separately. It is rare in daily admin work, so I kept it as a reference: when I see a `p` at the start of an `ls -l` line, I know it is a pipe, not a normal file.
+
+<div style="page-break-before: always"></div>
+
+# Day 8 – 25 Oct: signals, lock, trap, queue system and worker
+
+## 1. Step 4.3 – the concept: two copies, signals, lock and trap
+
+💡 **In plain words:** jobs that run by themselves – nightly backups, exports – must never run **twice at the same time**, and when they are stopped they must not leave broken files behind. Three tools solve this: a **lock**, **signals** and **trap**.
+
+### Key understanding (in my own words)
+
+> A nightly backup or export started by a **timer or cron** must never run **twice at the same time**: if the timer's backup runs from 02:00 to 03:00 and I start it by hand at 02:05, two copies would write to the same place and produce a broken result. The protection is a **lock** – a "someone is working on this right now" sign. Some programs have a lock **built in** (apt and dpkg – which is why a second apt, often Ubuntu's automatic updates running in the background, answers *"Could not get lock"*), but simple tools like `cp` or `rsync` and my own scripts have **none**, so I add it myself: a lock file checked at the start, `flock -n` (a kernel lock released automatically even after `kill -9`), or simply a systemd service, which never runs twice. A lock only stops a **second copy from starting**; it never stops anyone from terminating the job, and once the first copy has finished and removed its lock, the job can run again normally. A job is stopped by a **signal** from the kernel: **SIGTERM** (`kill -15`, "please stop"; `systemctl stop` sends it), **SIGINT** (Ctrl+C) or **SIGKILL** (`kill -9`, "stop now"). Stopping affects resources in two ways: **CPU and memory** are freed by the kernel whichever signal is used, but files the job created on **disk** – its lock, temporary files, a half-written archive – stay behind unless clean-up code removes them. **Linux processes have no clean-up by default**: the default action of SIGTERM is "die immediately", and SIGTERM only **gives the program a chance** to clean up. rsync, apt and databases have that code built in, while `cp`, `scp` and a plain Bash script do not – stopping a 20 GB `cp` halfway leaves a broken half-file that looks complete. **`trap`** adds clean-up code to a script: `trap cleanup SIGINT SIGTERM` means "on SIGTERM or Ctrl+C, first run my `cleanup` steps, then exit", and it runs only the steps I write. Trap does not stop or restart the process – the signal stops it, the trap cleans the disk before it ends, so the next start begins clean. **SIGKILL cannot be trapped**, so after `kill -9` the leftovers stay; a leftover lock is a **stale lock**, and the fix is always: prove nothing is running (`pgrep -af <job>`), remove the lock by hand, start the job again. Good jobs also write into a temporary **`.part` file** and rename it only when it is complete and verified, so a half-written file never looks finished.
+
+## 2. Step 4.3 – the concept: queue systems, producers and workers
+
+💡 **In plain words:** a **lock** says "busy, go away". A **queue with a worker** says "wait in line, I'll do it for you": everyone drops a request and leaves at once, and one program works through the requests one by one, at low priority, without losing any.
+
+📸 **Architecture – a queue system has four parts; Linux already has several (print, mail, `at`), and the same pattern runs online shops and Jenkins:**
+
+![queue systems](images/day-08/01-queue-systems-four-parts.png)
+
+### Key understanding (in my own words)
+
+> A **queue system** has four parts working together. A **producer** – a person, a script or an application – creates a **job ticket**, a small instruction such as *"archive /etc"*, places it in the **queue** and **gets control back at once**: it never waits for the job to be finished. The queue is a waiting room on disk called a **spool** folder; Linux keeps its own under **`/var/spool/`** – print jobs from `lp` wait in `/var/spool/cups/` for the worker `cupsd`, emails wait in `/var/spool/postfix/` for Postfix, `at` jobs wait in `/var/spool/cron/atjobs/` for `atd`. A **worker**, a program that runs all the time (usually a systemd service), takes the tickets **in order of arrival** – the oldest first, **FIFO**, first in, first out – does the work, stores the result in the agreed **output** place, and only then deletes the ticket (the **ack**, "done"), so if it fails or is stopped halfway the ticket stays and nothing is lost. Linux does not build a queue by itself: someone must place the tickets, and the worker must be written to take them out. Developers write workers; admins run and manage them – a systemd service with `Restart=on-failure`, more copies (a **worker pool**) when the load grows, logs in the journal, a safe stop with SIGTERM. Workers exist for three reasons: **nobody waits**, **the load stays under control**, **nothing is lost**. The same pattern runs a web shop (the shop puts *"send the confirmation email for order 501"* into RabbitMQ or AWS SQS and an email worker sends it) and **Jenkins** (the controller keeps the build queue, *"Waiting for next available executor"*, and agents are the workers). A **timer** is driven by **time** – one fixed job at a fixed time; a **socket** answers each **live connection** at once while the caller waits; a **worker** is driven by **stored requests** – any job, any time, one by one, while the requester has already left. Real automation grows step by step: do it by hand, script it, schedule it, and finally let a worker do it for everyone – repeating the same proven steps like a tireless user, without deciding anything new as an AI agent would. **`nice`** answers a different question from the queue: the queue decides the **order**, nice (-20 most important … 19 politest) decides **how much CPU** a running job gets.
+
+## 3. Lab – the Acme archive queue system on stor01
+
+💡 **The story:** at Acme, admins and scripts request archives ("archive /etc before I change the config", "archive the uploads"). Instead of running heavy `tar` jobs by hand, they drop a **ticket** into a queue, and one **archive worker** turns the tickets into verified archives one by one, at low priority, so the customer application is never slowed down.
+
+📸 **Architecture – one request from start to finish, the names, the journal and the built-in spool folders:**
+
+![step 1 overview](images/day-08/02-acme-archive-queue-step1-overview.png)
+
+### 3.1 Step 1 – the queue and the producer
+
+```bash
+# stor01
+sudo mkdir -p /var/spool/acme-archive /backups/archive
+sudo tee /usr/local/bin/archive-enqueue > /dev/null <<'EOF'
+#!/bin/bash
+[ -d "$1" ] || { echo "usage: archive-enqueue <folder>"; exit 1; }
+JOB=/var/spool/acme-archive/$(date +%s%N)-$(basename "$1").job
+echo "$1" > "$JOB"
+echo "queued: $1"
+EOF
+sudo chmod +x /usr/local/bin/archive-enqueue
+```
+
+📸 **Evidence:**
+
+![step 1](images/day-08/03-stor01-step1-queue-folders-and-producer.png)
+
+**Lesson:** my first version had `data` instead of `date`. `bash -n` did not catch it – it checks only the grammar of a script, not whether its commands exist. Only a test run proves a script works.
+
+### 3.2 Step 2 – the worker
+
+```bash
+QUEUE=/var/spool/acme-archive                             # WHERE – the agreed queue folder (same path as the producer)
+DEST=/backups/archive                                     # OUTPUT
+trap cleanup SIGINT SIGTERM                               # TRAP – on SIGTERM/Ctrl+C: stop tar, delete the .part file
+while true; do                                            # WORKER – runs forever
+  JOB=$(ls -tr "$QUEUE"/*.job 2>/dev/null | head -1)      # WHICH – the oldest ticket first (FIFO)
+  SRC=$(cat "$JOB")                                       # WHAT – read the folder from the ticket
+  TMP="$DEST/.$NAME.tar.gz.part"                          # SAFE FILE – work into a .part file
+  logger -t $TAG "start job: $SRC"                        # JOURNAL – message only
+  mv "$TMP" "$DEST/$NAME.tar.gz"                          # OUTPUT – only a complete, verified archive gets the real name
+  logger -t $TAG "OK $SRC -> $NAME.tar.gz"                # JOURNAL – "OK" only after the archive is stored
+  rm -f "$JOB"                                            # ACK – delete the ticket
+done
+```
+
+📸 **Evidence – the worker script:**
+
+![worker script](images/day-08/04-stor01-step2-worker-script.png)
+
+📸 **Evidence – manual test: worker running in one terminal; in the other `queued: /etc` at once, the queue empty again (ack), `etc-2026-10-25-234228.tar.gz` (566 K) + `.sha256` in the output, the journal *worker started → start job → OK* within 2 seconds; Ctrl+C → the trap's *"stop signal"* message:**
+
+![enqueue archive journal trap](images/day-08/05-stor01-step2-enqueue-archive-journal-trap.png)
+
+**Lessons:** I first typed the worker by hand with five mistakes – `backups/archive` without the leading `/`, `[ -n "$CHILD"]` without the space before `]`, `SIGNIT`, `sha56sum` and, worst, **`*.JOB` instead of `*.job`**: Linux is case-sensitive, so the worker would have waited forever without any error. Long scripts are pasted, not retyped. The number in `archive-worker[4513]` is the PID of each `logger` call; the worker's own PID is the one in the message (4292).
+
+### 3.3 Step 3 – the worker as a service, at low priority
+
+```bash
+sudo tee /etc/systemd/system/archive-worker.service > /dev/null <<'EOF'
+[Unit]
+Description=Acme archive worker (processes the archive queue)
+After=local-fs.target
+[Service]
+ExecStart=/usr/local/bin/archive-worker.sh
+Restart=on-failure
+Nice=19
+IOSchedulingClass=idle
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemd-analyze verify /etc/systemd/system/archive-worker.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now archive-worker
+systemctl status archive-worker --no-pager
+ps -o pid,ni,cmd -C archive-worker.sh
+```
+
+📸 **Evidence – the unit; `verify` finds nothing in my file (the yellow line is Ubuntu's own `snapd.service`):**
+
+![service unit](images/day-08/06-stor01-step3-service-unit-verify.png)
+
+📸 **Evidence – `active (running)`, Main PID 4839, 1.6 MB; the cgroup holds the worker and its child `sleep 5` (empty queue, waiting); NI 19:**
+
+![service running](images/day-08/07-stor01-step3-service-running-nice19.png)
+
+### Key understanding – the lab so far (in my own words)
+
+> On stor01 I built the **Acme archive queue system**. In **Step 1** I created the **queue** `/var/spool/acme-archive/` (the waiting room for job tickets), the **output** `/backups/archive/` and the **producer's tool** `archive-enqueue` in `/usr/local/bin`, the folder for an admin's own commands. When I type `sudo archive-enqueue /etc`, `$1` – a box filled with the first word after the command – becomes `/etc`; `[ -d "$1" ]` checks it is a folder (otherwise `||` prints the help and `exit 1` stops); `JOB=` builds the ticket's path from the queue folder, the time of the request (`date +%s%N`) and the folder name (`basename`); `echo "$1" > "$JOB"` writes the folder into that ticket file, and *"queued: /etc"* comes back at once. The tool's name is only a label for humans – "enqueue" is the standard word for "put into a queue" – and what it does is decided only by its code. In **Step 2** I created the **worker** `archive-worker.sh`. It knows where to look because the **same queue path** is written at its top – producer and worker simply agree on it, as `cupsd` reads its spool folder from its settings file – and it reads the folder from the ticket with `cat`, because `$1` exists only for the split second the producer runs. In a manual test it turned my ticket into `etc-2026-10-25-234228.tar.gz` with a `.sha256` checksum within 2 seconds, wrote *start job* and *OK* to the **journal** (the server's central diary, which holds only messages, never the archive itself), deleted the ticket (the ack), and on Ctrl+C its trap logged *"stop signal"* before exiting. In **Step 3** I made it a **systemd service** with `Restart=on-failure`, `Nice=19` and `IOSchedulingClass=idle`; it now runs all the time as PID 4839 at **NI 19**, its cgroup showing it waiting (`sleep 5`) for the next ticket. Because a service runs only once, systemd itself is the lock – no second worker can start.

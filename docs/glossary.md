@@ -164,6 +164,13 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **ETL / data warehouse** | Extract, Transform, Load – copy data into a separate database built for reports | Power BI reads the data warehouse |
 | **Pipe / named pipe (FIFO)** | `|` passes one command's output into the next / a pipe with a name for programs that cannot be joined with `|` | `tar czf - /etc \| ssh stor01 …` · `mkfifo` (type `p`) |
 | **pv (pipe viewer)** | Shows amount, speed, % and ETA of data flowing through a pipe | `pv dump.sql.gz \| gunzip \| mysql db` |
+| **Signal** | A short message from the kernel to a process | SIGTERM 15 (`kill -15`, "please stop") · SIGINT 2 (Ctrl+C) · SIGKILL 9 (`kill -9`, cannot be trapped) |
+| **trap** | Clean-up code a script runs when SIGTERM/SIGINT arrives | `trap cleanup SIGINT SIGTERM` |
+| **Lock / stale lock / flock** | "Already running" sign that stops a second copy / a lock left behind after a crash / a kernel lock released automatically | apt's "Could not get lock"; `flock -n` |
+| **Queue / producer / worker** | Waiting list of jobs (FIFO) / who puts a job in / the program that takes jobs one by one | print queue: `lp` → `/var/spool/cups` → `cupsd` |
+| **Spool folder** | A waiting room on disk for jobs, under `/var/spool` | `/var/spool/acme-archive/` |
+| **Ack** | The job leaves the queue only after it is really done | `rm "$JOB"` after success |
+| **$1 (argument)** | The first word typed after a command, inside a script | `archive-enqueue /etc` → `$1 = /etc` |
 | **PV / VG / LV** | Disk space handed to LVM / the pool / a slice of the pool used as a drive | `pvs`, `vgs`, `lvs`; grow with `lvextend -r` |
 | **Mount** | Make a formatted volume usable at a folder | `/` on Linux; a drive letter on Windows |
 | **Docker image / container** | The installer / the running program made from it | `docker images`, `docker ps` |
