@@ -171,6 +171,9 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Spool folder** | A waiting room on disk for jobs, under `/var/spool` | `/var/spool/acme-archive/` |
 | **Ack** | The job leaves the queue only after it is really done | `rm "$JOB"` after success |
 | **$1 (argument)** | The first word typed after a command, inside a script | `archive-enqueue /etc` → `$1 = /etc` |
+| **Escalation (L1 / L2 / L3)** | Hand a ticket to the next support level with evidence | L1 service desk → L2 admins (servers) → L3 engineering/vendor (root cause) |
+| **Root reserve (ext4)** | About 5 % of a filesystem kept for root; `df` "Avail" excludes it | `df` shows 100 % while root services can still write |
+| **Dead-letter queue** | Where failed jobs are kept for retry instead of being deleted | RabbitMQ / SQS feature |
 | **PV / VG / LV** | Disk space handed to LVM / the pool / a slice of the pool used as a drive | `pvs`, `vgs`, `lvs`; grow with `lvextend -r` |
 | **Mount** | Make a formatted volume usable at a folder | `/` on Linux; a drive letter on Windows |
 | **Docker image / container** | The installer / the running program made from it | `docker images`, `docker ps` |
