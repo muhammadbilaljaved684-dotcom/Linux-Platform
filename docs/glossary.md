@@ -180,3 +180,12 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Mounted folder (Docker volume)** | A host folder shown inside a container, where it keeps its data | Survives when the container is replaced |
 | **Storage Spaces / Storage Pool** | Windows version of LVM: disks → pool → virtual disks | Server Manager → File and Storage Services |
 | **LVM** | Lets you combine disks into one pool and grow storage later without downtime | Logical Volume Manager: PV → VG → LV |
+| **PID / PPID** | A process's own number / the number of its parent | `ps -o pid,ppid,cmd` |
+| **PID pool (pid_max)** | The kernel hands out the next free PID to whatever starts; one pool for everything | `cat /proc/sys/kernel/pid_max` |
+| **fork / exec / wait** | Parent makes a copy (new PID) / a process turns into another program (same PID) / parent reads the child's exit note so the PID is freed | bash runs `ls`: fork → exec → wait |
+| **$$** | The PID of the current shell | `echo $$` |
+| **getty / tty1** | The service that shows "login:" on the console / the console terminal itself (not a process) | `systemctl status getty@tty1` |
+| **Orphan process** | Child still running after its parent died; adopted by systemd (PPID 1) | `bash -c 'sleep 60 &'` |
+| **Zombie process (defunct)** | Finished child whose parent never read its exit note; STAT Z, keeps its PID; fix the parent | `[python3] <defunct>` |
+| **SIGCHLD** | Signal telling a parent "your child finished" | bash then reads the exit note at once |
+| **STAT (process state)** | R running · S sleeping · T stopped (Ctrl+Z) · Z zombie · + foreground · s session leader | `ps -o pid,stat,cmd` |

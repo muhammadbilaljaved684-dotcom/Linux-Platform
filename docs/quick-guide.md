@@ -2282,3 +2282,120 @@ journalctl -t archive-worker -n 3
 ### Key understanding – Steps 4 to 7 (in my own words)
 
 > With the worker running as a service, I queued three requests – `/data/app/uploads` (about 700 MB), `/etc` and `/var/log`. Each `archive-enqueue` answered *"queued"* at once, and the worker processed them strictly **in arrival order (FIFO)** and **one at a time**: uploads in 56 seconds, `/etc` the moment it finished, then `/var/log`; the later tickets simply waited. `journalctl -u archive-worker` missed one *OK* line, because a message from a very short-lived `logger` process cannot always be linked to the service, while `journalctl -t archive-worker` – filtering by the tag – showed every message. A request at any time (*"archive /etc now"*) was queued, started and finished within the same second, something a 02:00 timer cannot do. Then the real test: I stopped the worker with `systemctl stop` while it was compressing 700 MB. systemd sent SIGTERM, the worker's **trap** logged *"stop signal – partial archive removed, job stays in queue"*, the service was *Deactivated successfully*, `/backups/archive/` contained **no `.part` file**, and the uploads ticket was **still in the queue** – because the ticket is deleted only after success. After `systemctl start`, the new worker took that same ticket and finished it: nothing broken, nothing lost. Finally I practised a deliberate **escalation**. Two forgotten manual database dumps filled `/backups` – the first only up to the **5 % root reserve**, so `df` showed 100 % while the root-run worker could still write, and only the second made the job fail with *FAILED /var/log*. As **L1** I found the cause with `journalctl`, `df`, `du` and `ls`, did **not** delete someone else's data or resize the volume, and opened a High-urgency GLPI incident with all evidence, assigned to the group **L2 – Linux Storage**. As **L2** I recorded the owner's approval as a followup, removed the dumps (76 % used again), re-queued the failed job (*OK /var/log*), and wrote the solution – cause, decision, fix, verification, prevention – before closing the ticket. The failed `/var/log` ticket had been deleted by the worker, which showed a real design gap: production queues keep failed jobs in a **dead-letter queue** for retry. **L1's job is not to fix everything, but to find the cause, collect clear evidence, stay within its authority and hand over well; L2 fixes on the servers; L3 removes the root cause.**
+
+<div style="page-break-before: always"></div>
+
+# Day 9 – 26 Oct: clean-up · how processes are born – PID, fork, exec, wait, orphan, zombie
+
+## 1. Step 4.3 Step 9 – clean-up after the queue lab (stor01)
+
+💡 **In plain words:** after the escalation drill of Day 8 the backup volume must be back to normal, and the real nightly backup must still work.
+
+```bash
+# stor01
+journalctl -u nightly-backup.service --since "today" --no-pager | tail -5
+sudo rm -r /backups/archive/*
+df -h /backups
+```
+
+📸 **Evidence:**
+
+![Nightly backup at 02:00:07 succeeded; /backups back to 26 %](images/day-09/00-step9-cleanup.png)
+
+## 2. Step 4.4 – the concept: where processes and PIDs come from
+
+### 2.1 What is a process and a PID?
+
+💡 **In plain words:** a **process** is a program that is running right now – my bash, `ls`, `tar`, sshd, the archive worker. Every process gets a **PID** (its own number) and a **PPID** (the number of its parent, the process that started it). **Every process has a parent**, all the way up to **systemd, PID 1**.
+
+### 2.2 The PID pool
+
+```bash
+cat /proc/sys/kernel/pid_max      # size of the pool
+cat /proc/loadavg                 # last number = the PID given most recently
+ps -e --no-headers | wc -l        # how many PIDs are in use right now
+```
+
+### 2.4 From boot to my shell on app01
+
+```
+kernel → systemd (1) → getty@tty1 ─exec─► login (911) ─fork─► bash (1295) → my commands
+```
+
+## 3. Hands-on on app01 – watching processes being born
+
+### 3.1 Who am I?
+
+```bash
+echo $$                    # $$ = the PID of this shell
+```
+
+📸 **Evidence:**
+
+![echo $$ prints 1295, the PID of my bash](images/day-09/01-who-am-i.png)
+
+### 3.2 My family tree
+
+```bash
+pstree -ps $$              # -p = show PIDs, -s = show all parents
+```
+
+📸 **Evidence:**
+
+![systemd(1) → login(911) → bash(1295) → pstree(4808)](images/day-09/02-family-tree.png)
+
+### 3.3 Watch a birth
+
+```bash
+ps -o pid,ppid,cmd         # ps = process status, -o = which columns
+```
+
+📸 **Evidence:**
+
+![1295 911 -bash, and ps with PPID 1295](images/day-09/03-watch-a-birth.png)
+
+### 3.4 A child in the background – and a good parent
+
+```bash
+sleep 30 &                 # & = run in the background, prompt comes back at once
+ps -o pid,ppid,stat,cmd
+```
+
+📸 **Evidence:**
+
+![sleep 4812 in the background; [1]+ Done – no zombie](images/day-09/04-background-child.png)
+
+### 3.5 A child of a child
+
+```bash
+bash                       # a new bash inside my bash – waits for me until exit
+echo $$
+ps -o pid,ppid,cmd
+exit
+```
+
+📸 **Evidence:**
+
+![new bash 4814 with parent 1295; ps 4820 with parent 4814](images/day-09/05-grandchild.png)
+
+### 3.6 exec – the copy turns into another program (reference)
+
+```bash
+bash -c 'echo "my PID is $$"; exec sleep 30' &     # -c = run these commands, then end
+ps -o pid,ppid,cmd                                 # sleep has the SAME PID that echo printed
+```
+
+### 3.7 Orphan – the parent dies, the child keeps running
+
+```bash
+bash -c 'sleep 60 &'       # the inner bash starts sleep, then ends at once
+ps -o pid,ppid,stat,cmd -C sleep
+```
+
+📸 **Evidence:**
+
+![sleep 60 with PPID 1 and STAT S – an orphan adopted by systemd](images/day-09/06-orphan.png)
+
+## 5. Key understanding (in my own words)
+
+> When app01 boots, the kernel starts **systemd**, which gets **PID 1** and is the forefather of every process. systemd starts **getty** on the console terminal **tty1** (tty1 is the screen and keyboard, not a process); when I type my name, getty **execs into login** – the same process **911** changes its program – and after the correct password login **forks** a copy with a new PID that becomes **my bash (1295)**. **exec = same process, same PID, new program; fork = a new process with a new PID.** All PIDs come from **one pool managed by the kernel**, which gives the next free number to whatever starts; a service and a command get the same kind of number – the difference is **when** (services at boot, small numbers), **who** is the parent (systemd vs my bash) and **how long** they keep it. `echo $$` prints the PID of my shell, `pstree -ps $$` shows the whole family line, and `ps -o pid,ppid,cmd` shows each process with its parent – every command I type is a child of my bash. When a command is completely done and **its parent has read its exit note (wait)**, it has **no PID any more**; `[1]+ Done` is only bash's report. A PID stays only while the process is **still running** (R/S), when it is **paused with Ctrl+Z** (T), or when it is a **zombie** (Z, `<defunct>` = "dead") whose living parent never read the note. An **orphan** is the opposite: alive, its parent gone, adopted by **PID 1**. A zombie uses no CPU or memory, only its PID; it cannot be killed with `kill -9` – the fix is always **the parent**. In industry, engineers find the responsible parent through **PPID** or **pstree**, restart that service, and open a ticket for the developers.
