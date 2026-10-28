@@ -2,6 +2,12 @@
 
 > **Status: in progress.** Built step by step in VMware. Each working day is documented in [`docs/progress/`](docs/progress/) with real screenshots of every result. Every step is explained twice: technically, and in plain words for non-specialists. Unfamiliar terms: see the [glossary](docs/glossary.md).
 
+## What is built so far (Phases 1–4)
+
+![What I built so far – Phases 1 to 4](docs/acme-built-so-far.png)
+
+## Target architecture (all phases)
+
 ![Project 2 architecture](docs/project2-architecture.png)
 
 ## The problem
@@ -72,6 +78,7 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 linux-platform/
   README.md                     this page
   docs/
+    acme-built-so-far.png       what is built so far (Phases 1–4)
     project2-architecture.png   architecture diagram
     glossary.md                 plain-language explanation of every term
     progress/                   one technical report per working day
