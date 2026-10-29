@@ -49,6 +49,8 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 | 5A | Monitoring and alerting | ⏳ | |
 | 6 | Security hardening | ⏳ | |
 | 6A | WireGuard VPN | ⏳ | |
+| 6B | Vulnerability management: Greenbone/OpenVAS scan → patch → rescan | ⏳ | |
+| 6C | Quantum-safe readiness: crypto inventory, hybrid post-quantum SSH and TLS, migration plan | ⏳ | [Plan](docs/phases/phase-6c-quantum-safe-readiness.md) |
 | 7 | Publish the web service (DNAT) | ⏳ | |
 | 7A | Ansible: rebuild and joiner/leaver | ⏳ | |
 | 8 | Acceptance tests and disaster drill | ⏳ | |
@@ -69,6 +71,8 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 | Storage and tested backups | 2 | Restore drill, LVM snapshot rollback |
 | Monitoring and alerting | 5A | Time from failure to alert, measured |
 | Security hardening and VPN | 6, 6A | Firewall rules, SSH hardening, WireGuard access |
+| Vulnerability management | 6B | Greenbone report before and after patching |
+| Post-quantum readiness (EU roadmap: start by end of 2026) | 6C | Crypto inventory, `X25519MLKEM768` TLS and hybrid SSH proven, migration plan |
 | Automation | 7A | Ansible rebuild of a server, timed; joiner/leaver playbook |
 | Acceptance tests and disaster drill | 8 | Results table with measured numbers |
 
