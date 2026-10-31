@@ -53,6 +53,7 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 | 6C | Quantum-safe readiness: crypto inventory, hybrid post-quantum SSH and TLS, migration plan | ⏳ | [Plan](docs/phases/phase-6c-quantum-safe-readiness.md) |
 | 6D | Single sign-on with Keycloak: OIDC (Grafana), SAML (GLPI), MFA, leaver test | ⏳ | [Plan](docs/phases/phase-6d-single-sign-on.md) |
 | 7 | Publish the web service (DNAT) | ⏳ | |
+| 7B | Business application: SuiteCRM (install, roles, SSO, backup and restore, monitoring, updates) | ⏳ | [Plan](docs/phases/phase-7b-business-application-crm.md) |
 | 7A | Ansible: rebuild and joiner/leaver | ⏳ | |
 | 8 | Acceptance tests and disaster drill | ⏳ | |
 
@@ -75,6 +76,7 @@ My job as junior platform engineer: build a platform that is **recoverable, obse
 | Vulnerability management | 6B | Greenbone report before and after patching |
 | Post-quantum readiness (EU roadmap: start by end of 2026) | 6C | Crypto inventory, `X25519MLKEM768` TLS and hybrid SSH proven, migration plan |
 | Identity and access management (SSO) | 6D | Keycloak login for Grafana (OIDC) and GLPI (SAML), MFA, leaver removes all access |
+| Business application administration (CRM) | 7B | SuiteCRM run like a company app: roles, SSO, tested restore, alert, update via Change ticket |
 | Automation | 7A | Ansible rebuild of a server, timed; joiner/leaver playbook |
 | Acceptance tests and disaster drill | 8 | Results table with measured numbers |
 
