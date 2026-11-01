@@ -189,3 +189,15 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Zombie process (defunct)** | Finished child whose parent never read its exit note; STAT Z, keeps its PID; fix the parent | `[python3] <defunct>` |
 | **SIGCHLD** | Signal telling a parent "your child finished" | bash then reads the exit note at once |
 | **STAT (process state)** | R running · S sleeping · T stopped (Ctrl+Z) · Z zombie · + foreground · s session leader | `ps -o pid,stat,cmd` |
+| **cgroup (control group)** | A box systemd creates for every service; limits on the box apply to all its processes | `/sys/fs/cgroup/system.slice/archive-worker.service/` |
+| **CPUQuota / throttling** | CPU ceiling for a box; over it the box is slowed down (runs e.g. 30 ms of every 100 ms), never killed | `CPUQuota=30%` |
+| **MemoryHigh / MemoryMax** | Soft memory limit (drop cache, use swap, slow down) / hard wall (OOM killer) | `MemoryHigh=150M` · `MemoryMax=200M` |
+| **OOM killer** | Kernel feature that stops a process when memory runs out – with cgroups only inside the box | Kubernetes status `OOMKilled` |
+| **TasksMax** | Maximum number of processes/threads in a box – protects the PID pool | `TasksMax=20` |
+| **Page cache** | Copies of files kept in RAM for fast reading; can be dropped because the original is on disk | shown as buff/cache in `free -h` |
+| **Swap** | Reserved area on the disk used as extra slow RAM for idle program memory | `/swap.img` · `swapon --show` · Windows pagefile.sys |
+| **requests / limits (Kubernetes)** | Guaranteed amount used for scheduling / hard ceiling | `requests: cpu: "250m"` · `limits: memory: "256Mi"` |
+| **containerd / runc** | Container manager (images, start/stop) / low-level builder (namespaces + cgroup) | `dockerd → containerd → runc` |
+| **Namespace** | A separate view for a container: its own processes, network, hostname, files | each container has its own IP and PID 1 |
+| **Bridge / veth** | Virtual switch inside a Docker host / virtual cable from a container to it | `docker0` · `docker network create` |
+| **CNI plugin** | Gives every Kubernetes pod its IP and connects it | Calico, Flannel |

@@ -2422,3 +2422,46 @@ ps -o pid,ppid,stat,cmd -C sleep
 ## 6. Key understanding (in my own words)
 
 > Every running program is a **process** with a **PID** (its own number) and a **PPID** (its parent's number). The kernel hands out PIDs like a **ticket machine**, in **increasing order**, up to `pid_max` (about 4.2 million on Ubuntu); a freed number is reused only after the counter wraps around. At boot the kernel starts **only systemd (PID 1)**, and systemd starts every service – including **getty**, a process that watches the terminal **tty1** and shows "login:". When I type my username, getty **execs** into **login** (same PID); after the password, login **forks** a copy, the copy execs into my **login shell `-bash`**, and login waits in the background as its parent. bash never runs a program itself: it asks the **kernel** to make a **copy** of it with a **new PID** (**fork**), the copy turns into the command and keeps that PID (**exec**), and bash stays alive; built-ins like `cd` and `echo` are the exception – bash does them itself. When a child ends, it automatically leaves an **exit note** (its exit code, `echo $?`); the kernel tells the parent with **SIGCHLD**, the parent **reads** the note (**wait**), and the PID is freed. `exit` closes the chain the same way: bash ends, login reads its note and ends, and systemd starts a fresh getty. An **orphan** is a child that is **still running** after its parent died – systemd adopts it (PPID 1). A **zombie** is a child that has **finished** but whose parent **never read the note** – a bug (no `wait()`), a stuck parent, or a container without init. It shows **STAT Z, `<defunct>`**, uses no CPU or memory and only holds its PID – rare, but thousands of zombies can use up all PIDs, and then nothing new can start, not even an SSH login. `kill -9` cannot remove a zombie because it is already dead; **the fix is the parent** – find it through the zombie's PPID, restart that service, and systemd adopts the zombie and cleans it up, then open a ticket for the developers.
+
+<div style="page-break-before: always"></div>
+
+# Day 10 – 1 Nov: cgroups, cache and swap, container networking
+
+## 1. Warm-up – the PID pool on gw01
+
+```bash
+cat /proc/sys/kernel/pid_max      # 4194304 – size of the PID pool
+cat /proc/loadavg                 # 0.01 0.07 0.03 1/238 1823
+ps -e --no-headers | wc -l        # 209 processes
+```
+
+## 2. Step 4.5 – the concept: cgroups
+
+💡 **In plain words:** `nice` decides **who goes first**; a **cgroup** decides **how much at most**. Every service runs in its own **box**, and a limit on the box is a hard ceiling for every process inside it – so one bad job cannot freeze the whole server.
+
+### 2.4 The archive worker as an example (stor01)
+
+```ini
+[Service]
+ExecStart=/usr/local/bin/archive-worker.sh
+Nice=19                 # priority – per process
+IOSchedulingClass=idle
+CPUQuota=30%            # limits – for the whole box
+MemoryHigh=150M
+MemoryMax=200M
+TasksMax=20
+```
+
+📸 **Diagram:**
+
+![cgroups – how a service gets its box and its limits](images/day-10/01-cgroups-how-it-works.png)
+
+## 3. Container networking – the same idea as gw01
+
+📸 **Diagram:**
+
+![Networking – Linux, Docker and Kubernetes](images/day-10/02-networking-linux-docker-k8s.png)
+
+## 4. Key understanding (in my own words)
+
+> **nice** sets the priority of each process (-20 highest, 19 lowest) – who goes first, with no ceiling. A **cgroup** is a box that **systemd** creates for every service: one service = one box, and all its processes and their children live in it. In the unit file, `Nice=19` is only the start value for each process (`renice` can change one), while `CPUQuota`, `MemoryHigh`, `MemoryMax` and `TasksMax` are limits shared by the whole box. Over **CPUQuota** the box is **throttled** – it runs only e.g. 30 ms of every 100 ms, like mobile data after the limit: slower, never killed – and other services in their own boxes are not slowed. The CPU works only with **RAM**, so files read from disk are kept as copies in RAM, the **cache**. Above **MemoryHigh** (soft limit) the kernel first deletes this cache from RAM – nothing is lost, the originals are on the disk – and then moves idle program memory from RAM into **swap**, a reserved area on the disk (Ubuntu `/swap.img`, Windows `pagefile.sys`); normal files on the disk are never touched, the box only gets slower. If it still reaches **MemoryMax** (hard wall), the kernel's **OOM killer** stops a process in this box only. **TasksMax** caps the number of processes and protects the PID pool. **Docker** (`--memory`, `--cpus`, `mem_limit`) and **Kubernetes** (requests = guaranteed, limits = hard ceiling, `OOMKilled`) use the same cgroups: on Linux systemd creates the box; in Docker `dockerd → containerd → runc`; in Kubernetes `kubelet → containerd → runc`. containerd manages, runc builds the container with **namespaces** (isolation) and a **cgroup** (limits); the IP comes from Docker networking or a CNI plugin. Traffic to a container always reaches the **host's card** first, and a **NAT rule** forwards it – exactly like my gw01's `DNAT 8080 → app01:80`.
