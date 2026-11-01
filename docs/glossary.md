@@ -201,3 +201,8 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Namespace** | A separate view for a container: its own processes, network, hostname, files | each container has its own IP and PID 1 |
 | **Bridge / veth** | Virtual switch inside a Docker host / virtual cable from a container to it | `docker0` · `docker network create` |
 | **CNI plugin** | Gives every Kubernetes pod its IP and connects it | Calico, Flannel |
+| **slice / scope / service (systemd)** | A folder that groups boxes / a box for processes started from outside (e.g. a login) / a box for a service systemd starts | `user.slice` · `session-1.scope` · `cron.service` |
+| **init.scope / system.slice / user.slice** | The three boxes side by side under the root: PID 1 only / all services / all logged-in users | `systemd-cgls` |
+| **Drop-in file (.d folder)** | Extra settings added on top of a unit without changing the original file; used to store limits | `/etc/systemd/system/user-.slice.d/limits.conf` |
+| **systemctl set-property** | Sets a limit on a box and saves it as a drop-in file (`--runtime` = only until reboot/logout) | `sudo systemctl set-property user-1001.slice MemoryMax=1G` |
+| **user-.slice template** | One drop-in folder that applies to every `user-<UID>.slice` – one rule for every user | `/etc/systemd/system/user-.slice.d/` |

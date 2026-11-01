@@ -2425,7 +2425,7 @@ ps -o pid,ppid,stat,cmd -C sleep
 
 <div style="page-break-before: always"></div>
 
-# Day 10 – 1 Nov: cgroups, cache and swap, container networking
+# Day 10 – 1 Nov: cgroups, cache and swap, container networking, where limits are set and stored
 
 ## 1. Warm-up – the PID pool on gw01
 
@@ -2465,3 +2465,32 @@ TasksMax=20
 ## 4. Key understanding (in my own words)
 
 > **nice** sets the priority of each process (-20 highest, 19 lowest) – who goes first, with no ceiling. A **cgroup** is a box that **systemd** creates for every service: one service = one box, and all its processes and their children live in it. In the unit file, `Nice=19` is only the start value for each process (`renice` can change one), while `CPUQuota`, `MemoryHigh`, `MemoryMax` and `TasksMax` are limits shared by the whole box. Over **CPUQuota** the box is **throttled** – it runs only e.g. 30 ms of every 100 ms, like mobile data after the limit: slower, never killed – and other services in their own boxes are not slowed. The CPU works only with **RAM**, so files read from disk are kept as copies in RAM, the **cache**. Above **MemoryHigh** (soft limit) the kernel first deletes this cache from RAM – nothing is lost, the originals are on the disk – and then moves idle program memory from RAM into **swap**, a reserved area on the disk (Ubuntu `/swap.img`, Windows `pagefile.sys`); normal files on the disk are never touched, the box only gets slower. If it still reaches **MemoryMax** (hard wall), the kernel's **OOM killer** stops a process in this box only. **TasksMax** caps the number of processes and protects the PID pool. **Docker** (`--memory`, `--cpus`, `mem_limit`) and **Kubernetes** (requests = guaranteed, limits = hard ceiling, `OOMKilled`) use the same cgroups: on Linux systemd creates the box; in Docker `dockerd → containerd → runc`; in Kubernetes `kubelet → containerd → runc`. containerd manages, runc builds the container with **namespaces** (isolation) and a **cgroup** (limits); the IP comes from Docker networking or a CNI plugin. Traffic to a container always reaches the **host's card** first, and a **NAT rule** forwards it – exactly like my gw01's `DNAT 8080 → app01:80`.
+
+## 5. Lab Step 1 (app01) – the cgroup tree
+
+```bash
+free -h                  # RAM 1.9Gi · swap 1.8Gi
+swapon --show            # /swap.img – the swap file on the disk
+cat /proc/$$/cgroup      # 0::/user.slice/user-1000.slice/session-1.scope
+systemd-cgls             # the whole tree of boxes
+```
+
+💡 **In plain words:** the server is one tree of boxes. Directly under the root, **side by side**, are `init.scope` (only PID 1 – systemd), `system.slice` (all services, one box each) and `user.slice` (all logged-in users). My shell lives in the innermost box: `user.slice → user-1000.slice → session-1.scope`.
+
+📸 **Diagram – my real tree on app01:**
+
+![cgroup tree on app01](images/day-10/03-cgroup-tree-app01.png)
+
+## 6. Where a limit can be set – two users on one server
+
+📸 **Diagram:**
+
+![Two users – where to set limits](images/day-10/04-cgroup-two-users-where-to-limit.png)
+
+## 7. Where the limits are stored – set once, applied automatically
+
+📸 **Reference page:**
+
+![Where the limits are stored](images/day-10/05-where-limits-are-stored.png)
+
+> **In my own words:** The whole server is one tree of boxes under `-.slice`: `init.scope`, `system.slice` and `user.slice` side by side. A limit can go on any box and covers everything inside it – all services, one service, all users, one user, a user's own services, one login, or every user through the `user-.slice` template. Limits are small files in `/etc/systemd/system/<box>.d/`; systemd applies them at boot and to every new box it creates, so I set them once and every login is covered automatically.
