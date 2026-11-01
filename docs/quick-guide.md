@@ -2322,6 +2322,15 @@ ps -e --no-headers | wc -l        # how many PIDs are in use right now
 kernel → systemd (1) → getty@tty1 ─exec─► login (911) ─fork─► bash (1295) → my commands
 ```
 
+### 2.5 Why fork + exec? bash works through a representative
+
+```
+bash (1295) ── asks the KERNEL "copy me" (fork) ──► representative (new PID 4810)
+     │                                    exec ──► becomes ls (still 4810)
+     │                              finishes → leaves the exit note
+     └─ told (SIGCHLD) → READS the note (wait) → 4810 freed → prompt back
+```
+
 ## 3. Hands-on on app01 – watching processes being born
 
 ### 3.1 Who am I?
