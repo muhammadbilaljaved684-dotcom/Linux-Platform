@@ -2322,6 +2322,12 @@ ps -e --no-headers | wc -l        # how many PIDs are in use right now
 kernel → systemd (1) → getty@tty1 ─exec─► login (911) ─fork─► bash (1295) → my commands
 ```
 
+```
+while I work:  ls ends   → leaves an exit note → bash reads it  → back to the prompt
+when I exit:   bash ends → leaves an exit note → login reads it → login ends
+               → systemd starts a fresh getty → new "login:" screen (new PIDs)
+```
+
 ### 2.5 Why fork + exec? bash works through a representative
 
 ```
