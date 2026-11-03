@@ -216,3 +216,8 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **systemd-run** | Runs one command in a temporary box (scope or service), optionally with limits | `sudo systemd-run --scope -p MemoryMax=100M …` |
 | **stress-ng** | Test tool that creates fake load on purpose | `--vm 1 --vm-bytes 300M` · `--cpu 1` · `--fork 4` |
 | **CONSTRAINT_MEMCG** | Kernel log note: the OOM kill happened because of a cgroup (box) limit, not because the server ran out of RAM | `journalctl -k \| grep -i killed` |
+| **oom_score / oom_score_adj** | The kernel's "kill me first" score (highest dies first) / my adjustment to it, -1000 (never) … +1000 (first) | `cat /proc/$$/oom_score` · sshd = -1000 |
+| **OOMScoreAdjust=** | Unit-file setting that makes an oom_score_adj permanent for a service | `OOMScoreAdjust=-500` |
+| **OOMPolicy=** | What systemd does with the rest of a service after the kernel OOM-kills one of its processes | `stop` (whole service) · `continue` |
+| **$( … )** | Command substitution: run the inner command first and use its answer | `cat /proc/$(pgrep -o sshd)/oom_score_adj` |
+| **grep -i -E "a\|b"** | Keep lines with a OR b, ignoring upper/lower case | `grep -i -E "oom\|killed"` |

@@ -2497,7 +2497,7 @@ systemd-cgls             # the whole tree of boxes
 
 <div style="page-break-before: always"></div>
 
-# Day 11 – 3 Nov: memory limit + OOM killer, disk and RAM, mounts, live vs permanent
+# Day 11 – 3 Nov: hard and soft memory limits, how the OOM killer chooses, disk and RAM, live vs permanent
 
 ## 1. Lab Step 2 (app01) – a hard memory limit and the OOM killer
 
@@ -2547,6 +2547,48 @@ sudo systemd-run --scope  -p <LIMIT>   stress-ng <LOAD>  --timeout <TIME>
 
 ![Page 2 of the overview – live test vs permanent and the OOM test](images/day-11/04-live-test-vs-permanent.png)
 
-## 4. Key understanding (in my own words)
+## 4. Evening session – test #1 repeated, how the OOM killer chooses, test #2 (soft limit)
 
-> Everything is stored on the disk, and RAM starts empty. At power-on the kernel (`vmlinuz` with its helper `initrd.img`) is copied from `/boot` into RAM and becomes the manager; it starts systemd as PID 1. systemd reads its recipes in `/etc` – each read puts a copy of that one file in RAM (page cache) while the original stays on the disk – and from them builds the live things in RAM: the mount table, the services and the cgroup boxes. Every program asks the kernel for files; the kernel gives a copy from RAM, or reads the disk first. Each folder is mounted to a source: disk folders stay, `/run` in RAM is gone at reboot, `/proc`, `/sys` and `/dev` are live kernel information, the NFS share stays on stor01. The work always happens in RAM, and **where I write it decides if it stays**: a live change (`sysctl -w`, `systemd-run`, `--runtime`, `mount`, `ip addr`) is a test that is gone at reboot; a file on the disk – usually in `/etc` – is read at every boot and stays. My test proved it: `systemd-run` made a temporary box in system.slice with `MemoryMax=100M`, the OOM killer stopped stress-ng at about 96 MB inside that box only (`CONSTRAINT_MEMCG`), and the box disappeared when the test ended.
+### 4.1 Test #1 again – and how to read the proof
+
+💡 **In plain words:** the limit is for the **whole box** – everything inside shares it. The proof command is three small commands joined by pipes: the output of one goes into the next.
+
+![Test #1 – the box and the proof command](images/day-11/09-test1-box-and-proof.png)
+
+### 4.2 Many services in one box – who is killed?
+
+💡 **In plain words:** when a shared box reaches `MemoryMax`, the **kernel** (not systemd) scores every process **in that box** and kills the highest score – usually the **biggest memory user**, not the newest service that pushed the box over. It is predictable, not luck.
+
+![Who gets killed – kernel and systemd roles](images/day-11/10-who-gets-killed.png)
+
+### 4.3 Checking the scores on app01
+
+```bash
+cat /proc/$$/oom_score                     # 667  – my bash, normal
+cat /proc/$$/oom_score_adj                 # 0
+pgrep -o sshd                              # 966  – sshd main PID
+cat /proc/$(pgrep -o sshd)/oom_score_adj   # -1000 – protected by Ubuntu
+```
+
+📸 **Evidence:**
+
+![oom_score check on app01](images/day-11/12-oom-score-check.png)
+
+![The oom_score scale](images/day-11/11-oom-score-scale.png)
+
+### 4.4 Test #2 – soft limit: slowed down, not killed
+
+```bash
+sudo systemd-run --scope -p MemoryHigh=100M stress-ng --vm 1 --vm-bytes 200M --timeout 20s
+sudo journalctl -k --since "2 min ago" | grep -i killed     # prints nothing
+```
+
+📸 **Evidence:**
+
+![Test #2 – soft limit result](images/day-11/14-test2-soft-limit-result.png)
+
+![Test #2 – soft vs hard limit](images/day-11/13-test2-soft-limit.png)
+
+## 5. Key understanding (in my own words)
+
+> Everything is stored on the disk, and RAM starts empty. At power-on the kernel (`vmlinuz` with its helper `initrd.img`) is copied from `/boot` into RAM and becomes the manager; it starts systemd as PID 1. systemd reads its recipes in `/etc` – each read puts a copy of that one file in RAM (page cache) while the original stays on the disk – and from them builds the live things in RAM: the mount table, the services and the cgroup boxes. Every program asks the kernel for files; the kernel gives a copy from RAM, or reads the disk first. Each folder is mounted to a source: disk folders stay, `/run` in RAM is gone at reboot, `/proc`, `/sys` and `/dev` are live kernel information, the NFS share stays on stor01. The work always happens in RAM, and **where I write it decides if it stays**: a live change (`sysctl -w`, `systemd-run`, `--runtime`, `mount`, `ip addr`) is a test that is gone at reboot; a file on the disk – usually in `/etc` – is read at every boot and stays. My test proved it: `systemd-run` made a temporary box in system.slice with `MemoryMax=100M`, the OOM killer stopped stress-ng at about 96 MB inside that box only (`CONSTRAINT_MEMCG`), and the box disappeared when the test ended. In the evening I learned how the kernel chooses: when a shared box is full it kills the process with the highest OOM score – mostly the biggest memory user, adjusted by `oom_score_adj` (-1000 protects, like sshd on app01; +1000 kills first). systemd only marks the service failed and restarts it if `Restart=` is set. With `MemoryHigh=100M` (test #2) the same stress-ng was not killed: the kernel pushed the extra memory into swap, the job took 22 s instead of 20 s and finished. MemoryHigh = slow down, MemoryMax = kill.
