@@ -2494,3 +2494,59 @@ systemd-cgls             # the whole tree of boxes
 ![Where the limits are stored](images/day-10/05-where-limits-are-stored.png)
 
 > **In my own words:** The whole server is one tree of boxes under `-.slice`: `init.scope`, `system.slice` and `user.slice` side by side. A limit can go on any box and covers everything inside it – all services, one service, all users, one user, a user's own services, one login, or every user through the `user-.slice` template. Limits are small files in `/etc/systemd/system/<box>.d/`; systemd applies them at boot and to every new box it creates, so I set them once and every login is covered automatically.
+
+<div style="page-break-before: always"></div>
+
+# Day 11 – 3 Nov: memory limit + OOM killer, disk and RAM, mounts, live vs permanent
+
+## 1. Lab Step 2 (app01) – a hard memory limit and the OOM killer
+
+💡 **In plain words:** I gave a test program a box with a 100 MB memory wall and no swap, then asked it to use 300 MB. The kernel stopped it at the wall – inside its own box only. app01 and every service next to it kept running.
+
+```bash
+sudo systemd-run --scope -p MemoryMax=100M -p MemorySwapMax=0 stress-ng --vm 1 --vm-bytes 300M --timeout 1s
+sudo journalctl -k --since "5 min ago" | grep -i -E "oom|killed" | tail -5
+```
+
+```
+sudo systemd-run --scope  -p <LIMIT>   stress-ng <LOAD>  --timeout <TIME>
+     └─ make a box ──┘  └ the limit ┘  └── fake load to test the limit ──┘
+```
+
+📸 **Evidence:**
+
+![OOM test – stress-ng killed at 100 MB](images/day-11/01-oom-test-stress-ng.png)
+
+![Journal proof – CONSTRAINT_MEMCG](images/day-11/02-oom-journal-proof.png)
+
+## 2. How Linux uses the disk and RAM – from power-on
+
+💡 **In plain words:** everything is stored on the disk; RAM starts empty. The kernel is copied into RAM and becomes the manager, systemd reads its settings from `/etc`, and builds the live things in RAM.
+
+📸 **Diagram – the whole picture on one page:**
+
+![app01 from power-on – disk, RAM, kernel, systemd and mounts](images/day-11/03-app01-boot-mounts-overview.png)
+
+### 2.1 Mount = connect, not copy
+
+![What mount means – the library example](images/day-11/05-what-mount-means.png)
+
+### 2.2 When a program needs a file
+
+![How a file is read – cache miss and cache hit](images/day-11/06-how-a-file-is-read.png)
+
+## 3. Live test vs permanent – where I write it decides
+
+💡 **In plain words:** the work always happens in RAM. Saving a file in a disk folder is **not** lost – the kernel writes it to the disk within seconds. What is lost at reboot is a **live change with no file**. `/etc` is special because of its job: it holds the settings programs read every time they start.
+
+📸 **Diagrams:**
+
+![Two kinds of change](images/day-11/07-two-kinds-of-change.png)
+
+![Live vs file](images/day-11/08-live-vs-file.png)
+
+![Page 2 of the overview – live test vs permanent and the OOM test](images/day-11/04-live-test-vs-permanent.png)
+
+## 4. Key understanding (in my own words)
+
+> Everything is stored on the disk, and RAM starts empty. At power-on the kernel (`vmlinuz` with its helper `initrd.img`) is copied from `/boot` into RAM and becomes the manager; it starts systemd as PID 1. systemd reads its recipes in `/etc` – each read puts a copy of that one file in RAM (page cache) while the original stays on the disk – and from them builds the live things in RAM: the mount table, the services and the cgroup boxes. Every program asks the kernel for files; the kernel gives a copy from RAM, or reads the disk first. Each folder is mounted to a source: disk folders stay, `/run` in RAM is gone at reboot, `/proc`, `/sys` and `/dev` are live kernel information, the NFS share stays on stor01. The work always happens in RAM, and **where I write it decides if it stays**: a live change (`sysctl -w`, `systemd-run`, `--runtime`, `mount`, `ip addr`) is a test that is gone at reboot; a file on the disk – usually in `/etc` – is read at every boot and stays. My test proved it: `systemd-run` made a temporary box in system.slice with `MemoryMax=100M`, the OOM killer stopped stress-ng at about 96 MB inside that box only (`CONSTRAINT_MEMCG`), and the box disappeared when the test ended.

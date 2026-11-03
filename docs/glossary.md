@@ -206,3 +206,13 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **Drop-in file (.d folder)** | Extra settings added on top of a unit without changing the original file; used to store limits | `/etc/systemd/system/user-.slice.d/limits.conf` |
 | **systemctl set-property** | Sets a limit on a box and saves it as a drop-in file (`--runtime` = only until reboot/logout) | `sudo systemctl set-property user-1001.slice MemoryMax=1G` |
 | **user-.slice template** | One drop-in folder that applies to every `user-<UID>.slice` – one rule for every user | `/etc/systemd/system/user-.slice.d/` |
+| **Kernel file (vmlinuz) / initrd.img** | The kernel program / a small helper with disk drivers – both copied from /boot into RAM at power-on | `ls /boot` |
+| **Page cache (read path)** | When a program asks for a file, the kernel gives the copy from RAM or reads the disk first and keeps a copy | cache hit = fast · cache miss = disk read |
+| **Mount table** | The kernel's live list "folder → source" in RAM; rebuilt at every boot from /etc/fstab | `findmnt` |
+| **tmpfs** | A filesystem kept in RAM – real files, gone at reboot | `/run`, `/run/user/1000` |
+| **/proc · /sys · /dev** | Kernel views – live information shown as files, not stored on the disk | `/proc/loadavg` · `/sys/fs/cgroup` · `/dev/sda` |
+| **.mount unit** | systemd's unit for a mount, named after the folder with / → - (a real dash = \x2d) | `run-user-1000.mount` = `/run/user/1000` |
+| **Live change vs file** | A command changes the running system only (gone at reboot); a file on the disk is read at every boot (stays) | `sysctl -w` vs `/etc/sysctl.conf` |
+| **systemd-run** | Runs one command in a temporary box (scope or service), optionally with limits | `sudo systemd-run --scope -p MemoryMax=100M …` |
+| **stress-ng** | Test tool that creates fake load on purpose | `--vm 1 --vm-bytes 300M` · `--cpu 1` · `--fork 4` |
+| **CONSTRAINT_MEMCG** | Kernel log note: the OOM kill happened because of a cgroup (box) limit, not because the server ran out of RAM | `journalctl -k \| grep -i killed` |
