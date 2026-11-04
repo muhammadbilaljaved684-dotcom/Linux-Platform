@@ -2644,3 +2644,158 @@ sudo systemd-run --scope -p CPUQuota=20% stress-ng --cpu 1 --timeout 30s & sleep
 ## 3. Key understanding (in my own words)
 
 > All three tests use one pattern: `systemd-run --scope` makes a temporary box, `-p` puts a limit on it, stress-ng creates fake load inside, and I read the proof. `MemoryMax` is a hard wall – the job is **killed** (test 1). `MemoryHigh` is a soft limit – the job is **slowed** into swap (test 2). `CPUQuota=20%` lets the box run 20 ms in every 100 ms (`cpu.max` = `20000 100000`): without a limit stress-ng used 100 % of one core, with it `top` showed 20.5 % – **throttled**, never killed, and two boxes each got their own 20 % because a limit belongs to its box. When a shared box hits its memory wall, the kernel kills the process with the highest OOM score (memory used + `oom_score_adj`), and systemd only reacts. MemoryMax = kill · MemoryHigh = slow · CPUQuota = wait.
+
+<div style="page-break-before: always"></div>
+
+# Day 13 – 4 Nov: permanent limits, incident drill, GLPI Problem – Phase 4 complete
+
+## 1. Step 4 (stor01) – permanent limits for archive-worker.service
+
+💡 **In plain words:** tests 1–3 were live changes in temporary boxes – gone after each test. A real service needs limits that survive a reboot, so this time they go into **files on the disk** that systemd reads at every boot.
+
+![Step 4 – the plan](images/day-13/01-step4-plan.png)
+
+### 1.1 Before
+
+```bash
+systemctl status archive-worker --no-pager
+```
+
+![status](images/day-13/02-s1-status.png)
+
+```bash
+systemctl show archive-worker -p CPUQuotaPerSecUSec -p MemoryHigh -p MemoryMax -p TasksMax -p Nice
+```
+
+![show before](images/day-13/03-s1-show.png)
+
+### 1.2 Set the limits permanently
+
+```bash
+sudo systemctl set-property archive-worker.service CPUQuota=30% MemoryHigh=150M MemoryMax=200M TasksMax=20
+```
+
+![set-property](images/day-13/04-s2-set.png)
+
+### 1.3 The files on the disk
+
+```bash
+systemctl cat archive-worker
+```
+
+![unit file](images/day-13/05-s3-unit.png)
+
+![drop-ins](images/day-13/06-s3-dropins.png)
+
+### 1.4 The live box
+
+```bash
+cd /sys/fs/cgroup/system.slice/archive-worker.service/
+cat cpu.max memory.high memory.max pids.max
+```
+
+![live box](images/day-13/07-s4-live.png)
+
+### 1.5 Reboot test
+
+```bash
+sudo reboot
+systemctl show archive-worker -p CPUQuotaPerSecUSec -p MemoryHigh -p MemoryMax -p TasksMax -p Nice
+cat /sys/fs/cgroup/system.slice/archive-worker.service/cpu.max
+```
+
+![after reboot](images/day-13/08-s5-reboot.png)
+
+## 2. First incident drill (stor01) – "I deleted the file, but the disk is still full"
+
+💡 **In plain words:** `rm` removes only a file's **name**. If a running program still has the file open, its data stays on the disk until that program closes it. `df` counts disk blocks (still full), `du` counts names (looks empty) – when they disagree, think "deleted but still open".
+
+![Why the space is not freed](images/day-13/09-drill-why.png)
+
+```bash
+df -h /backups
+```
+
+![df -h /backups](images/day-13/drill-c01.png)
+
+```bash
+sudo fallocate -l 500M /backups/drill-big.log
+```
+
+![sudo fallocate -l 500M /backups/drill-big.log](images/day-13/drill-c02.png)
+
+```bash
+df -h /backups
+```
+
+![df -h /backups](images/day-13/drill-c03.png)
+
+```bash
+sleep 3600 < /backups/drill-big.log &
+```
+
+![sleep 3600 < /backups/drill-big.log &](images/day-13/drill-c04.png)
+
+```bash
+sudo rm /backups/drill-big.log
+```
+
+![sudo rm /backups/drill-big.log](images/day-13/drill-c05.png)
+
+```bash
+df -h /backups
+```
+
+![df -h /backups](images/day-13/drill-c06.png)
+
+```bash
+sudo du -sh /backups
+```
+
+![sudo du -sh /backups](images/day-13/drill-c07.png)
+
+```bash
+sudo lsof +L1
+```
+
+![sudo lsof +L1](images/day-13/drill-c08.png)
+
+```bash
+kill 5468
+```
+
+![kill 5468](images/day-13/drill-c09.png)
+
+```bash
+df -h /backups
+```
+
+![df -h /backups](images/day-13/drill-c10.png)
+
+📸 **The whole run, marked:**
+
+![drill annotated](images/day-13/10-drill-annotated.png)
+
+## 3. Closing Phase 4 in GLPI – Incident, Problem, snapshot
+
+💡 **In plain words (ITIL):** an **Incident** = one thing broke, fix it now · a **Problem** = why does it happen? find the root cause and fix it for good.
+
+![Closing plan](images/day-13/11-closing-plan.png)
+
+### 3.1 Incident ticket #4 – the drill
+
+![ticket 4](images/day-13/12-ticket4-solved.png)
+
+### 3.2 L3 Problem – "Archive worker on stor01 without resource limits"
+
+![problem form](images/day-13/13-problem-form.png)
+
+![analysis 1](images/day-13/14-problem-analysis-1.png)
+
+![analysis 2](images/day-13/15-problem-analysis-2.png)
+
+![problem solved](images/day-13/16-problem-solved.png)
+
+## 4. Key understanding (in my own words)
+
+> The archive worker on stor01 now has permanent limits – CPUQuota=30%, MemoryHigh=150M, MemoryMax=200M, TasksMax=20 – written by `systemctl set-property` without `--runtime` as drop-in files in `/etc/systemd/system.control/archive-worker.service.d/`, next to my unchanged unit file; after a reboot every limit was back, because systemd builds the box from those files at every boot. In the incident drill a deleted 500 MB file stayed on the disk because a running process still held it open: `df` showed 501M, `du` only 56K, `lsof +L1` found PID 5468 with "(deleted)", and stopping it freed the space – on a real server I would restart the service and prevent it with proper log rotation. Both went into GLPI the ITIL way: Incident ticket #4 for the drill (fix it now) and an L3 Problem for the root cause behind ticket #3 (fix it for good). A snapshot `50-processes` closes Phase 4.

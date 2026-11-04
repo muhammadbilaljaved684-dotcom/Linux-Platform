@@ -225,3 +225,8 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **%CPU vs %Cpu(s) in top** | %CPU = one process, 100 % = one full core / %Cpu(s) = the whole server, averaged over all cores | app01 (2 cores): one busy core = 100 % %CPU = 50 % us |
 | **cmd & sleep 2; top** | Start a job in the background, wait 2 s, then watch it live | `stress-ng --cpu 1 --timeout 30s & sleep 2; top` |
 | **sudo -v** | Enter the sudo password now, so later sudo commands (also in the background) do not ask | `sudo -v` |
+| **set-property (permanent)** | Without `--runtime`, applies a limit at once AND saves it as a drop-in file that systemd reads at every boot | `/etc/systemd/system.control/archive-worker.service.d/50-MemoryMax.conf` |
+| **df vs du** | df counts the used disk blocks / du adds up the files it can find by name – if they disagree, a deleted file is often still open | df 501M · du 56K |
+| **lsof +L1** | Lists open files with fewer than 1 link (name deleted) – the program still holding them | `sleep 5468 … drill-big.log (deleted)` |
+| **NLINK** | Number of names (links) a file has; 0 = deleted but still open | lsof column |
+| **Problem (ITIL)** | The root cause behind one or more incidents; solved for good, linked to the tickets | GLPI → Assistance → Problems |
