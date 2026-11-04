@@ -2597,6 +2597,16 @@ sudo journalctl -k --since "2 min ago" | grep -i killed     # prints nothing
 
 # Day 12 – 4 Nov: CPU limit – throttled, not killed · the 3 limit tests
 
+## 0. This session from the start (3 Nov 22:15 → 4 Nov 01:30) – tests 1 and 2
+
+![Test #1 – stress-ng killed at 100 MB](images/day-11/01-oom-test-stress-ng.png)
+
+![Test #1 – journal proof CONSTRAINT_MEMCG](images/day-11/02-oom-journal-proof.png)
+
+![oom_score check on app01](images/day-11/12-oom-score-check.png)
+
+![Test #2 – soft limit result](images/day-11/14-test2-soft-limit-result.png)
+
 ## 1. Test #3 (app01) – CPU limit: throttled, never killed
 
 💡 **In plain words:** CPU is not like memory. With `CPUQuota=20%` the box may use the CPU for 20 ms in every 100 ms; when its share is used up it simply **waits** for the next 100 ms – like mobile data after the monthly limit: slower, not cut off. Nothing is killed.
