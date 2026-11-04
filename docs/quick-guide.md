@@ -595,6 +595,12 @@ sudo usermod -U bob                                  # unlock (returner)
 
 # Day 3 – 16–17 Oct: Phase 1A – svc01, GLPI, inventory
 
+## Before Phase 1A – quick revision (Phases 0–1)
+
+💡 **5 minutes:** what I already know from Phases 0–1 and where it comes back in Phase 1A.
+
+![Before Phase 1A – quick revision](images/revision/before-phase-1A.png)
+
 ## 1. The story – why a service desk, and why now
 
 💡 **In plain words:** until now I fixed problems and wrote them down in these reports. A real IT team does not work like that: every problem, every change and every "please give me access" goes into a **ticket system**, so anyone can see *what happened, who fixed it, how, and when*. Phase 1A gives Acme that system.
@@ -1010,6 +1016,12 @@ sudo glpi-agent --force                                                     # se
 
 # Day 4 – 18 Oct: GLPI wrap-up, LVM, NFS, backups, restore
 
+## Before Phase 2 – quick revision (Phases 0–1A)
+
+💡 **5 minutes:** what I already know from Phases 0–1A and where it comes back in Phase 2.
+
+![Before Phase 2 – quick revision](images/revision/before-phase-2.png)
+
 ## 1. Start of the day – does GLPI survive a full power-off?
 
 💡 **In plain words:** last night all four VMs were shut down. Today they were started again, gw01 first (it is the router). GLPI came back by itself – nobody had to start it.
@@ -1345,6 +1357,12 @@ cat /data/app/test.txt                          # "hello from app01"
 <div style="page-break-before: always"></div>
 
 # Day 5 – 20 Oct: snapshot rollback, job control, systemd timer and socket
+
+## Before Phase 3 – quick revision (Phases 0–2)
+
+💡 **5 minutes:** what I already know from Phases 0–2 and where it comes back in Phase 3.
+
+![Before Phase 3 – quick revision](images/revision/before-phase-3.png)
 
 ## 1. Break test – reachable is not allowed (Step 2.2)
 
@@ -1899,6 +1917,12 @@ systemctl list-dependencies acme-stack.target
 <div style="page-break-before: always"></div>
 
 # Day 7 – 24 Oct: Phase 4 – slow app, runaway process, pipes
+
+## Before Phase 4 – quick revision (Phases 0–3)
+
+💡 **5 minutes:** what I already know from Phases 0–3 and where it comes back in Phase 4.
+
+![Before Phase 4 – quick revision](images/revision/before-phase-4.png)
 
 ## 1. A question from industry – too many backups, and backup logs that grow too big
 
@@ -2706,11 +2730,25 @@ cat /sys/fs/cgroup/system.slice/archive-worker.service/cpu.max
 
 ![after reboot](images/day-13/08-s5-reboot.png)
 
+### 1.6 Step 4 explained – how the limits really work
+
+💡 **CPUQuota=30%:** the kernel cuts CPU time into periods of 100 ms; the box may run 30 ms in each (`cpu.max 30000 100000`), at full speed, then waits only until the next period – the clock refills the budget 10 times per second. The other 70 ms go to whatever else needs the CPU (NFS, backups, any job); if nothing does, the CPU stays idle – CPUQuota is a hard cap. Like pocket money paid every day: the spending speed never changes, only the waiting.
+
+![CPU throttling – final](images/day-13/17-cpu-throttling-final.png)
+
+💡 **TasksMax vs restarts:** `TasksMax=20` = at most 20 processes alive in the box **at the same moment** (the 21st fork fails). Restarts are separate: `Restart=on-failure` restarts the service, `StartLimitBurst` / `StartLimitIntervalSec` limit how many starts in how much time (default 5 in 10 s).
+
+![Who shares stor01's CPU, and what TasksMax counts](images/day-13/18-cpu-share-and-tasksmax.png)
+
+![StartLimitBurst and StartLimitIntervalSec](images/day-13/19-start-limits.png)
+
 ## 2. First incident drill (stor01) – "I deleted the file, but the disk is still full"
 
 💡 **In plain words:** `rm` removes only a file's **name**. If a running program still has the file open, its data stays on the disk until that program closes it. `df` counts disk blocks (still full), `du` counts names (looks empty) – when they disagree, think "deleted but still open".
 
 ![Why the space is not freed](images/day-13/09-drill-why.png)
+
+![Drill – final corrected version](images/day-13/20-drill-final-corrected.png)
 
 ```bash
 df -h /backups
@@ -2799,3 +2837,9 @@ df -h /backups
 ## 4. Key understanding (in my own words)
 
 > The archive worker on stor01 now has permanent limits – CPUQuota=30%, MemoryHigh=150M, MemoryMax=200M, TasksMax=20 – written by `systemctl set-property` without `--runtime` as drop-in files in `/etc/systemd/system.control/archive-worker.service.d/`, next to my unchanged unit file; after a reboot every limit was back, because systemd builds the box from those files at every boot. In the incident drill a deleted 500 MB file stayed on the disk because a running process still held it open: `df` showed 501M, `du` only 56K, `lsof +L1` found PID 5468 with "(deleted)", and stopping it freed the space – on a real server I would restart the service and prevent it with proper log rotation. Both went into GLPI the ITIL way: Incident ticket #4 for the drill (fix it now) and an L3 Problem for the root cause behind ticket #3 (fix it for good). A snapshot `50-processes` closes Phase 4.
+
+## 5. Next – before Phase 5, a quick revision (Phases 1–4)
+
+💡 **5 minutes:** the six things from Phases 1–4 that come back in Phase 5 (journald, rsyslog, logrotate), and where Phase 5 is going – logs from every server to stor01.
+
+![Before Phase 5 – quick revision](images/revision/before-phase-5.png)
