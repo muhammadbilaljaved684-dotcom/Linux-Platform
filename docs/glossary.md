@@ -221,3 +221,7 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **OOMPolicy=** | What systemd does with the rest of a service after the kernel OOM-kills one of its processes | `stop` (whole service) · `continue` |
 | **$( … )** | Command substitution: run the inner command first and use its answer | `cat /proc/$(pgrep -o sshd)/oom_score_adj` |
 | **grep -i -E "a\|b"** | Keep lines with a OR b, ignoring upper/lower case | `grep -i -E "oom\|killed"` |
+| **cpu.max** | The box's CPU limit file: "quota period" in microseconds | `20000 100000` = 20 ms of every 100 ms = 20 % |
+| **%CPU vs %Cpu(s) in top** | %CPU = one process, 100 % = one full core / %Cpu(s) = the whole server, averaged over all cores | app01 (2 cores): one busy core = 100 % %CPU = 50 % us |
+| **cmd & sleep 2; top** | Start a job in the background, wait 2 s, then watch it live | `stress-ng --cpu 1 --timeout 30s & sleep 2; top` |
+| **sudo -v** | Enter the sudo password now, so later sudo commands (also in the background) do not ask | `sudo -v` |

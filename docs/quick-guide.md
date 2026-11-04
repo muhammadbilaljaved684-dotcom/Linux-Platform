@@ -2592,3 +2592,45 @@ sudo journalctl -k --since "2 min ago" | grep -i killed     # prints nothing
 ## 5. Key understanding (in my own words)
 
 > Everything is stored on the disk, and RAM starts empty. At power-on the kernel (`vmlinuz` with its helper `initrd.img`) is copied from `/boot` into RAM and becomes the manager; it starts systemd as PID 1. systemd reads its recipes in `/etc` – each read puts a copy of that one file in RAM (page cache) while the original stays on the disk – and from them builds the live things in RAM: the mount table, the services and the cgroup boxes. Every program asks the kernel for files; the kernel gives a copy from RAM, or reads the disk first. Each folder is mounted to a source: disk folders stay, `/run` in RAM is gone at reboot, `/proc`, `/sys` and `/dev` are live kernel information, the NFS share stays on stor01. The work always happens in RAM, and **where I write it decides if it stays**: a live change (`sysctl -w`, `systemd-run`, `--runtime`, `mount`, `ip addr`) is a test that is gone at reboot; a file on the disk – usually in `/etc` – is read at every boot and stays. My test proved it: `systemd-run` made a temporary box in system.slice with `MemoryMax=100M`, the OOM killer stopped stress-ng at about 96 MB inside that box only (`CONSTRAINT_MEMCG`), and the box disappeared when the test ended. In the evening I learned how the kernel chooses: when a shared box is full it kills the process with the highest OOM score – mostly the biggest memory user, adjusted by `oom_score_adj` (-1000 protects, like sshd on app01; +1000 kills first). systemd only marks the service failed and restarts it if `Restart=` is set. With `MemoryHigh=100M` (test #2) the same stress-ng was not killed: the kernel pushed the extra memory into swap, the job took 22 s instead of 20 s and finished. MemoryHigh = slow down, MemoryMax = kill.
+
+<div style="page-break-before: always"></div>
+
+# Day 12 – 4 Nov: CPU limit – throttled, not killed · the 3 limit tests
+
+## 1. Test #3 (app01) – CPU limit: throttled, never killed
+
+💡 **In plain words:** CPU is not like memory. With `CPUQuota=20%` the box may use the CPU for 20 ms in every 100 ms; when its share is used up it simply **waits** for the next 100 ms – like mobile data after the monthly limit: slower, not cut off. Nothing is killed.
+
+```bash
+# A) baseline – no limit
+stress-ng --cpu 1 --timeout 30s & sleep 2; top
+
+# B) with the limit
+sudo -v
+sudo systemd-run --scope -p CPUQuota=20% stress-ng --cpu 1 --timeout 60s & sleep 2; top
+
+# proof from the box itself (only while the test runs)
+sudo systemd-run --scope -p CPUQuota=20% stress-ng --cpu 1 --timeout 30s & sleep 2; cat /sys/fs/cgroup/system.slice/run-*.scope/cpu.max
+```
+
+📸 **Evidence:**
+
+![No limit – stress-ng at 100 %](images/day-12/02-no-limit-top-100.png)
+
+![CPUQuota=20% – stress-ng at 20.5 %](images/day-12/03-cpuquota-top-20.png)
+
+![cpu.max – 20000 100000](images/day-12/04-cpu-max-proof.png)
+
+![Test #3 – how CPU throttling works](images/day-12/01-test3-cpu-limit.png)
+
+## 2. The 3 limit tests – revision sheet
+
+📸 **The 2-page revision sheet** (page 2: who the OOM killer chooses, the OOM score, reading the proof, console tricks):
+
+![Phase 4 limits – page 1](images/day-12/05-phase4-limits-page1.png)
+
+![Phase 4 limits – page 2](images/day-12/06-phase4-limits-page2.png)
+
+## 3. Key understanding (in my own words)
+
+> All three tests use one pattern: `systemd-run --scope` makes a temporary box, `-p` puts a limit on it, stress-ng creates fake load inside, and I read the proof. `MemoryMax` is a hard wall – the job is **killed** (test 1). `MemoryHigh` is a soft limit – the job is **slowed** into swap (test 2). `CPUQuota=20%` lets the box run 20 ms in every 100 ms (`cpu.max` = `20000 100000`): without a limit stress-ng used 100 % of one core, with it `top` showed 20.5 % – **throttled**, never killed, and two boxes each got their own 20 % because a limit belongs to its box. When a shared box hits its memory wall, the kernel kills the process with the highest OOM score (memory used + `oom_score_adj`), and systemd only reacts. MemoryMax = kill · MemoryHigh = slow · CPUQuota = wait.
