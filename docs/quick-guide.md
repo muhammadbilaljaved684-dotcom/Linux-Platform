@@ -2843,3 +2843,97 @@ df -h /backups
 💡 **5 minutes:** the six things from Phases 1–4 that come back in Phase 5 (journald, rsyslog, logrotate), and where Phase 5 is going – logs from every server to stor01.
 
 ![Before Phase 5 – quick revision](images/revision/before-phase-5.png)
+
+<div style="page-break-before: always"></div>
+
+# Day 14 – 6–7 Nov: Phase 5 starts – how Linux runs a program and reads a file
+
+## 0. Before Phase 5 – quick revision
+
+![Before Phase 5 – revision](images/revision/before-phase-5.png)
+
+![Step 5.1 on one page](images/day-14/10-step-5-1-complete.png)
+
+## 1. User space, kernel space and the system call
+
+![user space → CPU → kernel → back](images/day-14/12-syscall-simple.png)
+
+![Down and back up – us, sy, wa](images/day-14/11-down-and-up-us-sy-wa.png)
+
+## 2. Every program = a card in kernel space + a body in user space
+
+![Card and body](images/day-14/13-card-and-body.png)
+
+![Cards, pointers and files – with and without the cache](images/day-14/18-cards-pointers-with-without-cache.png)
+
+## 3. Where everything lives in RAM
+
+![The RAM of app01](images/day-14/14-ram-architecture.png)
+
+![Buffers vs page cache](images/day-14/15-buffers-vs-cache.png)
+
+## 4. `cat F1` from start to end – who does what
+
+![Open and read – the actual Linux picture](images/day-14/16-open-read-actual.png)
+
+![cat F1 step by step](images/day-14/17-cat-steps-top-down.png)
+
+![The four kernel tools, the card's state and vmstat](images/day-14/19-final-four-tools.png)
+
+![Crossing the wall](images/day-14/27-crossing-the-wall.png)
+
+## 5. Link to Phase 4: deleted but still open
+
+![Deleted but still open – explained](images/day-14/20-deleted-but-open-explained.png)
+
+## 6. Warm-up on app01 – seeing it live
+
+```bash
+echo $$
+grep -E 'Name|State|Pid' /proc/$$/status
+ls -l /proc/$$/fd
+free -h
+sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
+free -h
+```
+
+![bash's card, tickets, cache emptied](images/day-14/01-card-tickets-cache-drop.png)
+
+```bash
+time cat /usr/bin/bash > /dev/null     # 4 times
+free -h
+```
+
+![time cat – first from disk, then from cache](images/day-14/02-time-cat-bash.png)
+
+![buff/cache grew again](images/day-14/03-free-after.png)
+
+```bash
+top
+```
+
+![top – 212 cards, 1 running](images/day-14/04-top-212-tasks.png)
+
+```bash
+dd if=/dev/zero of=~/big bs=1M count=300
+sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
+vmstat 1          # second console
+```
+
+![dd 300 MB in 0.88 s](images/day-14/05-dd-300M-drop-caches.png)
+
+![vmstat – the quiet "before" picture](images/day-14/06-vmstat-quiet.png)
+
+![The screenshots explained](images/day-14/21-exercise-a-explained.png)
+
+## 7. Writing, compressing and mounts on the same map
+
+![Case 1 – normal write](images/day-14/23-w1-normal-write.png)
+
+![Case 2 – the dd test](images/day-14/24-w2-dd-dsync.png)
+
+![Case 3 – compress](images/day-14/25-w3-compress.png)
+
+![Case 4 – mounts](images/day-14/26-w4-mount-nfs.png)
+
+![Everything on one page](images/day-14/22-everything-one-page.png)

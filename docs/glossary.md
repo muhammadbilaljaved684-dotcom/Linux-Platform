@@ -230,3 +230,21 @@ Terms used in the progress reports, explained for readers without a Linux backgr
 | **lsof +L1** | Lists open files with fewer than 1 link (name deleted) – the program still holding them | `sleep 5468 … drill-big.log (deleted)` |
 | **NLINK** | Number of names (links) a file has; 0 = deleted but still open | lsof column |
 | **Problem (ITIL)** | The root cause behind one or more incidents; solved for good, linked to the tickets | GLPI → Assistance → Problems |
+| **User space / kernel space** | Two areas of RAM: programs live in user space, each in its own room; the kernel lives in kernel space and is the only one allowed to touch hardware | CPU in user mode = us · kernel mode = sy |
+| **System call (syscall)** | The only door from a program to the kernel: request number + details in CPU registers, then the `syscall` instruction | open, read, write, fork, exec, exit · `strace` shows them |
+| **Process card (task_struct)** | The kernel's notes about one running program: PID, parent PID, state, pointer to its file table | `cat /proc/$$/status` |
+| **fork / exec** | fork = make a new card as a copy of the parent (new PID); exec = replace the code in its room with another program | bash → `cat F1` |
+| **PPID** | Parent PID: who asked for this card | cat's PPID = bash's PID · `ps -o pid,ppid,cmd` |
+| **Process state R / S / D** | R = can run · S = sleeping (waiting for typing, a timer) · D = waiting for the disk | `ps -o stat` · D cards = vmstat `b` |
+| **File descriptor (fd) / file table** | A program's tickets to its open files; 0, 1, 2 = keyboard, screen, errors; 3 and up for files it opens | `ls -l /proc/$$/fd` |
+| **Inode** | A file's ID card: number, owner, size, permissions and the list of disk blocks that hold its content (not the name) | `ls -i` · `stat F1` |
+| **Map cache (buffers, inode and dentry cache)** | RAM copies of the map: folder entries (name → inode number) and inodes – WHERE the content is, never the content | vmstat `buff` |
+| **Page cache (content)** | RAM copies of file content; first read from the disk, later reads from RAM; writes land here first as dirty pages | vmstat `cache` · `free -h` buff/cache |
+| **Disk driver** | Kernel tool that orders the disk to send or save blocks, only when RAM is missing something; marks the waiting card R again when the disk is done | bi / bo |
+| **Scheduler** | Kernel tool that only reads the cards' states and gives the CPU to an R card every few milliseconds | vmstat `r` = R cards waiting for a core |
+| **Interrupt** | The hardware's bell, e.g. the disk saying "done"; the kernel answers it | vmstat `in` |
+| **drop_caches** | Throws away clean cache copies (the disk keeps the originals) – used to test first-read speed | `sync; echo 3 \| sudo tee /proc/sys/vm/drop_caches` |
+| **vmstat** | Virtual memory statistics: r b · free buff cache · si so · bi bo · us sy id wa, one line per second; skip line 1 (since boot) | `vmstat 1 5` |
+| **Dirty page** | File content in the page cache that is not saved to the disk yet; the flusher writes it later | `grep ^Dirty /proc/meminfo` · `sync` |
+| **oflag=dsync** | dd option: say "done" only when each block is really on the disk – forces waiting | `dd … oflag=dsync` |
+| **Readahead** | The kernel reads a little more than asked, guessing the next pieces | page cache |
