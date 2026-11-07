@@ -2848,7 +2848,15 @@ df -h /backups
 
 # Day 14 – 6–7 Nov: Phase 5 starts – how Linux runs a program and reads a file
 
-## 0. Before Phase 5 – quick revision
+## 0. Phase 5 – the story, the goal and the plan
+
+![Phase 5 – story and plan](images/day-14/00-phase-5-story-and-plan.png)
+
+### How Phase 5 follows from Phase 4
+
+![Phase 4 → Phase 5](images/day-14/00b-phase-4-to-5-link.png)
+
+### Before Phase 5 – quick revision
 
 ![Before Phase 5 – revision](images/revision/before-phase-5.png)
 
