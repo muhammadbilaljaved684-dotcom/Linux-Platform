@@ -4,6 +4,15 @@
 #   sudo bash server-report.sh
 # Output: /var/tmp/server-report-<host>-<date>.txt  (a summary with WARN lines on top)
 # Project 2 – Acme Analytics Linux platform
+#
+# Grows with the project – a role section is added when a phase adds a service:
+#   Phase 5  rsyslog central logs ✔ · journal size · logrotate
+#   Phase 5A monitoring: node_exporter / Prometheus / Grafana up, alert rules
+#   Phase 6  security: fail2ban jails, auditd rules, AppArmor profiles, forward proxy (Squid)
+#   Phase 6A WireGuard VPN: wg show, peers and last handshake
+#   Phase 6B Greenbone: services/containers up, last scan
+#   Phase 7  nginx reverse proxy + load balancer upstreams, TLS certificate expiry date, DNS (dig)
+#   Phase 7B SuiteCRM: web app answers, its database, backup age
 
 HOST=$(hostname)
 STAMP=$(date +%Y-%m-%d_%H%M)
