@@ -55,8 +55,8 @@ fi
 if has nginx; then
   if place /etc/nginx/conf.d/central-logs.conf \
 "# send nginx logs also to syslog -> rsyslog -> stor01 (own files in /var/log/nginx stay)
-access_log syslog:server=unix:/dev/log,tag=nginx_access;
-error_log  syslog:server=unix:/dev/log,tag=nginx_error;"; then
+access_log syslog:server=unix:/dev/log,tag=nginx_access,nohostname;
+error_log  syslog:server=unix:/dev/log,tag=nginx_error,nohostname;"; then
     if nginx -t >/dev/null 2>&1; then
       systemctl reload nginx && say "OK" "nginx reloaded – access and error log go to syslog"
     else
