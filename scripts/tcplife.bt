@@ -5,7 +5,7 @@
 // State 1 = ESTABLISHED (connection ready), 7 = CLOSE (connection ended), protocol 6 = TCP
 
 // No BEGIN/END blocks: Ubuntu 22.04's bpftrace 0.14 fails on them ("Could not resolve symbol … BEGIN_trigger").
-// Columns: FROM  PORT  ->  TO  PORT  MS
+// Columns: FROM  PORT  ->  TO  PORT  MS      · a FAILED line = we tried to connect (SYN_SENT) and it closed without ever opening
 
 tracepoint:sock:inet_sock_set_state /args->protocol == 6 && args->newstate == 1/
 {
@@ -19,3 +19,8 @@ tracepoint:sock:inet_sock_set_state /args->protocol == 6 && args->newstate == 7 
   delete(@start[args->skaddr]);
 }
 
+
+tracepoint:sock:inet_sock_set_state /args->protocol == 6 && args->oldstate == 2 && args->newstate == 7/
+{
+  printf("%-15s %-6d -> %-15s %-6d   FAILED (never opened)\n", ntop(args->saddr), args->sport, ntop(args->daddr), args->dport);
+}

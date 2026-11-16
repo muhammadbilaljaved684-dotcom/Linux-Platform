@@ -15,7 +15,7 @@
 #   3 On the CPU          which programs actually use the CPU   (like profile)
 #   4 Waiting for CPU     how long programs wait for a CPU      (like runqlat)
 #   5 Disk                who writes/reads, how fast the disk   (like biotop + biolatency)
-#   6 TCP connections     who connects where, how long          (like tcplife / tcpconnect)
+#   6 TCP connections     who connects where, how long, which failed (like tcplife / tcpconnect)
 #   7 TCP retransmits     lost packets, per address             (like tcpretrans)
 #   8 OOM kills           processes killed because RAM ran out  (like oomkill)
 #   9 Kill signals        who sent kill / stop to whom          (like killsnoop)
@@ -86,6 +86,7 @@ add 'tracepoint:sock:inet_sock_set_state /args->protocol == 6/ {
     if (args->oldstate == 2) { @tcp_out[@ocomm[args->skaddr], ntop(args->daddr), args->dport] = count(); }
     if (args->oldstate == 3) { @tcp_in[ntop(args->daddr), args->sport] = count(); }
   }
+  if (args->oldstate == 2 && args->newstate == 7) { @tcp_fail[@ocomm[args->skaddr], ntop(args->daddr), args->dport] = count(); }
   if (args->newstate == 7) {
     if (@st[args->skaddr]) {
       @tcp_ms = hist((nsecs - @st[args->skaddr]) / 1000000);
@@ -152,6 +153,9 @@ add '
   printf("\n== 6d. TCP – longest connections (address, remote port, local port: ms) ==\n");
   printf("   look for: a database or API call that takes seconds\n");
   print(@tcp_long, 10); clear(@tcp_long);
+  printf("\n== 6e. TCP – FAILED connections (program, address, port: count) ==\n");
+  printf("   good: empty · bad: a program that keeps trying a server that is down or blocked\n");
+  print(@tcp_fail, 10); clear(@tcp_fail);
 
   printf("\n== 7. TCP RETRANSMITS – packets sent again (address, port: count) ==\n");
   printf("   good: empty · bad: many = network problem to that address\n");
