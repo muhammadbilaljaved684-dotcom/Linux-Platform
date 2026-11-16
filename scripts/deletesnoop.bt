@@ -1,0 +1,24 @@
+#!/usr/bin/env bpftrace
+// deletesnoop.bt – who deletes or renames files, live (bpftrace)
+// Run: sudo bpftrace deletesnoop.bt            Stop: Ctrl+C
+// Shows: time, user id, program, process id, action, file name
+// Tip: only /var/log →  sudo bpftrace deletesnoop.bt | grep /var/log
+// No BEGIN/END blocks – Ubuntu 22.04's bpftrace 0.14 fails on them.
+
+tracepoint:syscalls:sys_enter_unlinkat
+{
+  time("%H:%M:%S ");
+  printf("uid=%-5d %-16s pid=%-7d DELETE  %s\n", uid, comm, pid, str(args->pathname));
+}
+
+tracepoint:syscalls:sys_enter_renameat2
+{
+  time("%H:%M:%S ");
+  printf("uid=%-5d %-16s pid=%-7d RENAME  %s -> %s\n", uid, comm, pid, str(args->oldname), str(args->newname));
+}
+
+tracepoint:syscalls:sys_enter_truncate
+{
+  time("%H:%M:%S ");
+  printf("uid=%-5d %-16s pid=%-7d EMPTY   %s\n", uid, comm, pid, str(args->path));
+}
