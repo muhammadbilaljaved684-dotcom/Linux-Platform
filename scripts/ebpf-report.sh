@@ -181,7 +181,9 @@ OUT="$OUTDIR/ebpf-$(hostname)-$(date +%Y-%m-%d-%H%M).txt"
 } | tee "$OUT"
 
 echo "Watching $(hostname) for $DUR seconds … use the server now. (Ctrl+C = stop early – then no report)"
-BPFTRACE_STRLEN=96 bpftrace "$PROG" 2>&1 | grep -v -E '^Attaching [0-9]+ probes' | tee -a "$OUT"
+# after the report, bpftrace still dumps its (now empty) maps while it exits – hide everything after the last ===== line
+BPFTRACE_STRLEN=96 bpftrace "$PROG" 2>&1 | grep -v -E '^Attaching [0-9]+ probes' \
+  | awk '!done {print} /^=+$/ && length($0) == 53 {done = 1}' | tee -a "$OUT"
 
 [ -n "$SUDO_USER" ] && chown -R "$SUDO_USER": "$OUTDIR"
 echo "Saved: $OUT"
