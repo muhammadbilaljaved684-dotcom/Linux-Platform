@@ -77,23 +77,22 @@ add 'tracepoint:block:block_rq_complete /@bio[args->dev, args->sector]/ {
   delete(@bio[args->dev, args->sector]); }'
 else SKIPPED="$SKIPPED 5-disk"; fi
 
-# 6 – TCP connections: out (we connect), in (they connect), duration
+# 6 – TCP connections: out (we connect), in (they connect), duration, failed
+# Split into small probes: one big probe was rejected by the kernel's verifier on app01.
 if has 'tracepoint:sock:inet_sock_set_state'; then
-add 'tracepoint:sock:inet_sock_set_state /args->protocol == 6/ {
-  if (args->newstate == 2) { @ocomm[args->skaddr] = comm; }
-  if (args->newstate == 1) {
-    @st[args->skaddr] = nsecs;
-    if (args->oldstate == 2) { @tcp_out[@ocomm[args->skaddr], ntop(args->daddr), args->dport] = count(); }
-    if (args->oldstate == 3) { @tcp_in[ntop(args->daddr), args->sport] = count(); }
-  }
-  if (args->oldstate == 2 && args->newstate == 7) { @tcp_fail[@ocomm[args->skaddr], ntop(args->daddr), args->dport] = count(); }
-  if (args->newstate == 7) {
-    if (@st[args->skaddr]) {
-      @tcp_ms = hist((nsecs - @st[args->skaddr]) / 1000000);
-      @tcp_long[ntop(args->daddr), args->dport, args->sport] = max((nsecs - @st[args->skaddr]) / 1000000);
-    }
-    delete(@st[args->skaddr]); delete(@ocomm[args->skaddr]);
-  } }'
+add 'tracepoint:sock:inet_sock_set_state /args->protocol == 6 && args->newstate == 2/ {
+  @tcp_out[comm, ntop(args->daddr), args->dport] = count(); }'
+add 'tracepoint:sock:inet_sock_set_state /args->protocol == 6 && args->oldstate == 3 && args->newstate == 1/ {
+  @tcp_in[ntop(args->daddr), args->sport] = count(); }'
+add 'tracepoint:sock:inet_sock_set_state /args->protocol == 6 && args->newstate == 1/ {
+  @st[args->skaddr] = nsecs; }'
+add 'tracepoint:sock:inet_sock_set_state /args->protocol == 6 && args->newstate == 7 && @st[args->skaddr]/ {
+  $ms = (nsecs - @st[args->skaddr]) / 1000000;
+  @tcp_ms = hist($ms);
+  @tcp_long[ntop(args->daddr), args->dport, args->sport] = max($ms);
+  delete(@st[args->skaddr]); }'
+add 'tracepoint:sock:inet_sock_set_state /args->protocol == 6 && args->oldstate == 2 && args->newstate == 7/ {
+  @tcp_fail[ntop(args->daddr), args->dport] = count(); }'
 else SKIPPED="$SKIPPED 6-tcp"; fi
 
 # 7 – TCP retransmits
@@ -114,7 +113,7 @@ else SKIPPED="$SKIPPED 9-signals"; fi
 # the report – helper maps are cleared so only the sections below are printed
 add "interval:s:$DUR {"
 add '
-  clear(@fn); clear(@qt); clear(@bio); clear(@st); clear(@ocomm);
+  clear(@fn); clear(@qt); clear(@bio); clear(@st);
   printf("\n==================== eBPF REPORT ====================\n");
   printf("Empty section = nothing of that kind happened while watching.\n");
 
@@ -143,7 +142,7 @@ add '
   printf("   good (SSD/VM): mostly under 1 000 us · bad: many above 10 000 us = slow disk\n");
   print(@disk_us); clear(@disk_us);
 
-  printf("\n== 6a. TCP OUT – this server connected to (program, address, port: count) ==\n");
+  printf("\n== 6a. TCP OUT – this server tried to connect to (program, address, port: count) ==\n");
   print(@tcp_out, 15); clear(@tcp_out);
   printf("\n== 6b. TCP IN – connected to this server (from address, our port: count) ==\n");
   printf("   look for: one address with very many connections = a scanner or a stuck client\n");
@@ -153,7 +152,7 @@ add '
   printf("\n== 6d. TCP – longest connections (address, remote port, local port: ms) ==\n");
   printf("   look for: a database or API call that takes seconds\n");
   print(@tcp_long, 10); clear(@tcp_long);
-  printf("\n== 6e. TCP – FAILED connections (program, address, port: count) ==\n");
+  printf("\n== 6e. TCP – FAILED connections, never opened (address, port: count) ==\n");
   printf("   good: empty · bad: a program that keeps trying a server that is down or blocked\n");
   print(@tcp_fail, 10); clear(@tcp_fail);
 
