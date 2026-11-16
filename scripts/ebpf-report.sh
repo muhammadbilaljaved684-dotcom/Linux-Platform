@@ -39,8 +39,8 @@ trap 'rm -f "$PROG"' EXIT
 SKIPPED=""
 add() { printf '%s\n' "$1" >> "$PROG"; }
 
-add "BEGIN { printf(\"Watching $(hostname) for $DUR seconds … use the server now. (Ctrl+C = stop early)\\n\"); }"
-add "interval:s:$DUR { exit(); }"
+# No BEGIN/END blocks: Ubuntu 22.04's bpftrace 0.14 fails on them ("Could not resolve symbol … BEGIN_trigger").
+# The report is printed by the timer probe itself, which then ends the run.
 
 # 1 – new programs
 if has 'tracepoint:syscalls:sys_enter_execve'; then
@@ -111,7 +111,8 @@ add 'tracepoint:signal:signal_generate /args->sig == 9 || args->sig == 15/ { @si
 else SKIPPED="$SKIPPED 9-signals"; fi
 
 # the report – helper maps are cleared so only the sections below are printed
-add 'END {
+add "interval:s:$DUR {"
+add '
   clear(@fn); clear(@qt); clear(@bio); clear(@st); clear(@ocomm);
   printf("\n==================== eBPF REPORT ====================\n");
   printf("Empty section = nothing of that kind happened while watching.\n");
@@ -163,6 +164,7 @@ add 'END {
   printf("\n== 9. KILL SIGNALS – sender, target, signal (9 = kill, 15 = stop) ==\n");
   print(@sig, 10); clear(@sig);
   printf("\n=====================================================\n");
+  exit();
 }'
 
 OUTDIR="/root/ebpf-reports"
@@ -175,6 +177,7 @@ OUT="$OUTDIR/ebpf-$(hostname)-$(date +%Y-%m-%d-%H%M).txt"
   [ -n "$SKIPPED" ] && echo "SKIPPED (this kernel has no tracepoint for):$SKIPPED"
 } | tee "$OUT"
 
+echo "Watching $(hostname) for $DUR seconds … use the server now. (Ctrl+C = stop early – then no report)"
 BPFTRACE_STRLEN=96 bpftrace "$PROG" 2>&1 | grep -v -E '^Attaching [0-9]+ probes' | tee -a "$OUT"
 
 [ -n "$SUDO_USER" ] && chown -R "$SUDO_USER": "$OUTDIR"

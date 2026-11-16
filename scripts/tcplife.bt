@@ -4,7 +4,8 @@
 // Run: sudo bpftrace tcplife.bt      Stop: Ctrl+C
 // State 1 = ESTABLISHED (connection ready), 7 = CLOSE (connection ended), protocol 6 = TCP
 
-BEGIN { printf("%-15s %-6s    %-15s %-6s %8s\n", "FROM", "PORT", "TO", "PORT", "MS"); }
+// No BEGIN/END blocks: Ubuntu 22.04's bpftrace 0.14 fails on them ("Could not resolve symbol … BEGIN_trigger").
+// Columns: FROM  PORT  ->  TO  PORT  MS
 
 tracepoint:sock:inet_sock_set_state /args->protocol == 6 && args->newstate == 1/
 {
@@ -18,4 +19,3 @@ tracepoint:sock:inet_sock_set_state /args->protocol == 6 && args->newstate == 7 
   delete(@start[args->skaddr]);
 }
 
-END { clear(@start); }
