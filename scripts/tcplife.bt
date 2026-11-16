@@ -1,0 +1,21 @@
+#!/usr/bin/env bpftrace
+// tcplife.bt – every TCP connection with its duration (bpftrace version of tcplife)
+// Uses the stable kernel tracepoint sock:inet_sock_set_state – no kernel headers needed.
+// Run: sudo bpftrace tcplife.bt      Stop: Ctrl+C
+// State 1 = ESTABLISHED (connection ready), 7 = CLOSE (connection ended), protocol 6 = TCP
+
+BEGIN { printf("%-15s %-6s    %-15s %-6s %8s\n", "FROM", "PORT", "TO", "PORT", "MS"); }
+
+tracepoint:sock:inet_sock_set_state /args->protocol == 6 && args->newstate == 1/
+{
+  @start[args->skaddr] = nsecs;
+}
+
+tracepoint:sock:inet_sock_set_state /args->protocol == 6 && args->newstate == 7 && @start[args->skaddr]/
+{
+  $ms = (nsecs - @start[args->skaddr]) / 1000000;
+  printf("%-15s %-6d -> %-15s %-6d %8d\n", ntop(args->saddr), args->sport, ntop(args->daddr), args->dport, $ms);
+  delete(@start[args->skaddr]);
+}
+
+END { clear(@start); }
